@@ -26,7 +26,7 @@
         PreviewDragOver="OnPreviewDragOver">
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="0"
-                            CornerRadius="0"
+                            CornerRadius="16"
                             GlassFrameThickness="0"
                             ResizeBorderThickness="6"
                             UseAeroCaptionButtons="False"/>
@@ -93,7 +93,6 @@
             <Setter Property="Height" Value="36"/>
             <Setter Property="MinWidth" Value="112"/>
             <Setter Property="Padding" Value="18,0"/>
-            <Setter Property="Foreground" Value="#858591"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -103,27 +102,24 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="18">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="Root" CornerRadius="18">
+                            <Border.Background>
+                                <MultiBinding Converter="{StaticResource ThemeBrushConverter}" ConverterParameter="TabBackground">
+                                    <Binding Path="DataContext.IsLightTheme" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                    <Binding Path="IsChecked" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    <Binding Path="IsMouseOver" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                </MultiBinding>
+                            </Border.Background>
+                            <TextElement.Foreground>
+                                <MultiBinding Converter="{StaticResource ThemeBrushConverter}" ConverterParameter="TabForeground">
+                                    <Binding Path="DataContext.IsLightTheme" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                    <Binding Path="IsChecked" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    <Binding Path="IsMouseOver" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                </MultiBinding>
+                            </TextElement.Foreground>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
                         </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="#1E1E29"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="#F5F5F7"/>
-                                <Setter Property="Foreground" Value="#111111"/>
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsChecked" Value="True"/>
-                                    <Condition Property="IsMouseOver" Value="True"/>
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="Root" Property="Background" Value="#E5E5E7"/>
-                                <Setter Property="Foreground" Value="#111111"/>
-                            </MultiTrigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -286,7 +282,11 @@
         </Style>
     </Window.Resources>
 
-    <Border CornerRadius="12" Background="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Root}" BorderThickness="0" ClipToBounds="True">
+    <Border CornerRadius="16"
+            Background="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Root}"
+            BorderBrush="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=RootBorder}"
+            BorderThickness="1"
+            ClipToBounds="True">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="60"/>

@@ -51,22 +51,12 @@
       "IsDragging": false
     },
     {
-      "Id": "b1b2b3b4-c1c2-d1d2-e1e2-f1f2f3f4f5f6",
-      "Name": "NOTION",
-      "IconPath": "Assets/Icons/Notion_639164675721237855.png",
-      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Local\\Programs\\Notion\\Notion.exe",
-      "IsFavorite": true,
-      "Order": 5,
-      "Category": "\u1EE8NG D\u1EE4NG",
-      "IsDragging": false
-    },
-    {
       "Id": "ef02c9c7-cd40-4bd2-ab78-3b3c4df4b0fb",
       "Name": "B1",
       "IconPath": "Assets/Icons/b1_639164679316938915.png",
       "ExecutablePath": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\BlackMythWukong\\b1.exe",
       "IsFavorite": false,
-      "Order": 6,
+      "Order": 5,
       "Category": "KHO GAME",
       "IsDragging": false
     },
@@ -76,8 +66,18 @@
       "IconPath": "Assets/Icons/VALORANT_639164679701486677.png",
       "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Riot Games\\VALORANT.lnk",
       "IsFavorite": false,
-      "Order": 7,
+      "Order": 6,
       "Category": "KHO GAME",
+      "IsDragging": false
+    },
+    {
+      "Id": "b1b2b3b4-c1c2-d1d2-e1e2-f1f2f3f4f5f6",
+      "Name": "NOTION",
+      "IconPath": "Assets/Icons/Notion_639164675721237855.png",
+      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Local\\Programs\\Notion\\Notion.exe",
+      "IsFavorite": true,
+      "Order": 7,
+      "Category": "\u1EE8NG D\u1EE4NG",
       "IsDragging": false
     },
     {
@@ -91,82 +91,12 @@
       "IsDragging": false
     },
     {
-      "Id": "9dae0a42-ad06-408e-afdd-f6cb8f8c8934",
-      "Name": "KENA",
-      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Kena.exe - Shortcut_639165056537348476.png",
-      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\Kena.exe - Shortcut.lnk",
-      "IsFavorite": false,
-      "Order": 9,
-      "Category": "KHO GAME",
-      "IsDragging": false
-    },
-    {
-      "Id": "03097498-86c7-476e-86d2-2a84534b5b1d",
-      "Name": "LEGOBATMANLOTDK",
-      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\LEGOBatmanLotDK.exe - Shortcut_639165056542352404.png",
-      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\LEGOBatmanLotDK.exe - Shortcut.lnk",
-      "IsFavorite": false,
-      "Order": 10,
-      "Category": "KHO GAME",
-      "IsDragging": false
-    },
-    {
-      "Id": "c2ca5b46-7538-4d5c-8ff0-73e37cf35378",
-      "Name": "MIXTAPE",
-      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Mixtape.exe - Shortcut_639165056542613418.png",
-      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\Mixtape.exe - Shortcut.lnk",
-      "IsFavorite": false,
-      "Order": 11,
-      "Category": "KHO GAME",
-      "IsDragging": false
-    },
-    {
-      "Id": "7ee31deb-f75b-47c3-a37f-c7a8d80fe032",
-      "Name": "PRAGMATA",
-      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\PRAGMATA.exe - Shortcut_639165056543895002.png",
-      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\PRAGMATA.exe - Shortcut.lnk",
-      "IsFavorite": false,
-      "Order": 12,
-      "Category": "KHO GAME",
-      "IsDragging": false
-    },
-    {
-      "Id": "aff912a0-44d3-4bae-ad2f-ee7e120573ea",
-      "Name": "STEAM",
-      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Steam_639165056544136125.png",
-      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Steam\\Steam.lnk",
-      "IsFavorite": false,
-      "Order": 13,
-      "Category": "KHO GAME",
-      "IsDragging": false
-    },
-    {
-      "Id": "67c1a794-1d41-43ff-bfab-cdbf4b45a1f8",
-      "Name": "IPTV CHECKER",
-      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\IPTV Checker_639165065743974223.png",
-      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\IPTV Checker.lnk",
-      "IsFavorite": false,
-      "Order": 14,
-      "Category": "\u1EE8NG D\u1EE4NG",
-      "IsDragging": false
-    },
-    {
-      "Id": "46183e25-1eff-401c-9b2f-9d6332745520",
-      "Name": "KNIME",
-      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\knime_639165065744860852.png",
-      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Local\\Programs\\KNIME\\knime.exe",
-      "IsFavorite": false,
-      "Order": 15,
-      "Category": "\u1EE8NG D\u1EE4NG",
-      "IsDragging": false
-    },
-    {
       "Id": "097f5783-1a10-4c6f-939e-89ac84765289",
       "Name": "HWMONITOR",
       "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\HWMonitor_639165068206765008.png",
       "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\CPUID\\HWMonitor\\HWMonitor.lnk",
       "IsFavorite": true,
-      "Order": 16,
+      "Order": 9,
       "Category": "\u1EE8NG D\u1EE4NG",
       "IsDragging": false
     },
@@ -176,7 +106,67 @@
       "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\EVKey64_639165056545853099.png",
       "ExecutablePath": "C:\\Users\\tuant\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\EVKey64.lnk",
       "IsFavorite": true,
-      "Order": 17,
+      "Order": 10,
+      "Category": "\u1EE8NG D\u1EE4NG",
+      "IsDragging": false
+    },
+    {
+      "Id": "7ee31deb-f75b-47c3-a37f-c7a8d80fe032",
+      "Name": "PRAGMATA",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\PRAGMATA.exe - Shortcut_639165056543895002.png",
+      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\PRAGMATA.exe - Shortcut.lnk",
+      "IsFavorite": false,
+      "Order": 11,
+      "Category": "KHO GAME",
+      "IsDragging": false
+    },
+    {
+      "Id": "03097498-86c7-476e-86d2-2a84534b5b1d",
+      "Name": "LEGOBATMANLOTDK",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\LEGOBatmanLotDK.exe - Shortcut_639165056542352404.png",
+      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\LEGOBatmanLotDK.exe - Shortcut.lnk",
+      "IsFavorite": false,
+      "Order": 12,
+      "Category": "KHO GAME",
+      "IsDragging": false
+    },
+    {
+      "Id": "9dae0a42-ad06-408e-afdd-f6cb8f8c8934",
+      "Name": "KENA",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Kena.exe - Shortcut_639165056537348476.png",
+      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\Kena.exe - Shortcut.lnk",
+      "IsFavorite": false,
+      "Order": 13,
+      "Category": "KHO GAME",
+      "IsDragging": false
+    },
+    {
+      "Id": "aff912a0-44d3-4bae-ad2f-ee7e120573ea",
+      "Name": "STEAM",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Steam_639165056544136125.png",
+      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Steam\\Steam.lnk",
+      "IsFavorite": false,
+      "Order": 14,
+      "Category": "KHO GAME",
+      "IsDragging": false
+    },
+    {
+      "Id": "67c1a794-1d41-43ff-bfab-cdbf4b45a1f8",
+      "Name": "IPTV CHECKER",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\IPTV Checker_639165065743974223.png",
+      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\IPTV Checker.lnk",
+      "IsFavorite": true,
+      "Order": 15,
+      "Category": "\u1EE8NG D\u1EE4NG",
+      "IsDragging": false
+    },
+    {
+      "Id": "46183e25-1eff-401c-9b2f-9d6332745520",
+      "Name": "KNIME",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\knime_639165065744860852.png",
+      "ExecutablePath": "C:\\Users\\tuant\\AppData\\Local\\Programs\\KNIME\\knime.exe",
+      "IsFavorite": false,
+      "Order": 16,
       "Category": "\u1EE8NG D\u1EE4NG",
       "IsDragging": false
     },
@@ -186,7 +176,7 @@
       "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\ATK HUB_639165056544264629.png",
       "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ATK HUB.lnk",
       "IsFavorite": false,
-      "Order": 18,
+      "Order": 17,
       "Category": "\u1EE8NG D\u1EE4NG",
       "IsDragging": false
     },
@@ -196,7 +186,7 @@
       "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\MySQL Workbench 8.0 CE_639165068209681689.png",
       "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL\\MySQL Workbench 8.0 CE.lnk",
       "IsFavorite": false,
-      "Order": 19,
+      "Order": 18,
       "Category": "\u1EE8NG D\u1EE4NG",
       "IsDragging": false
     },
@@ -206,11 +196,51 @@
       "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Code_639165076289888160.png",
       "ExecutablePath": "C:\\Users\\tuant\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
       "IsFavorite": false,
+      "Order": 19,
+      "Category": "\u1EE8NG D\u1EE4NG",
+      "IsDragging": false
+    },
+    {
+      "Id": "f861cd85-b96f-4e51-9f51-323a208231ee",
+      "Name": "NVIDIA APP",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\NVIDIA App_639165112316576425.png",
+      "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\NVIDIA Corporation\\NVIDIA App.lnk",
+      "IsFavorite": false,
       "Order": 20,
       "Category": "\u1EE8NG D\u1EE4NG",
       "IsDragging": false
+    },
+    {
+      "Id": "7ca7fc6f-1b03-4602-969f-05b52afae433",
+      "Name": "RADMIN VPN",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Radmin VPN_639165112318222881.png",
+      "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Radmin VPN\\Radmin VPN.lnk",
+      "IsFavorite": false,
+      "Order": 21,
+      "Category": "\u1EE8NG D\u1EE4NG",
+      "IsDragging": false
+    },
+    {
+      "Id": "30bc6fa0-98d2-438b-b0b0-2772d76515c8",
+      "Name": "WORD",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Word_639165112322119551.png",
+      "ExecutablePath": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Word.lnk",
+      "IsFavorite": false,
+      "Order": 22,
+      "Category": "\u1EE8NG D\u1EE4NG",
+      "IsDragging": false
+    },
+    {
+      "Id": "94f0e642-b6a0-43ba-b335-3be19857fd86",
+      "Name": "MIXTAPE",
+      "IconPath": "F:\\launcher\\bin\\Debug\\net8.0-windows10.0.19041.0\\Assets\\Icons\\Mixtape.exe - Shortcut_639165113147459735.png",
+      "ExecutablePath": "C:\\Users\\tuant\\Desktop\\Mixtape.exe - Shortcut.lnk",
+      "IsFavorite": false,
+      "Order": 23,
+      "Category": "KHO GAME",
+      "IsDragging": false
     }
   ],
-  "DefaultTab": "KHO GAME",
+  "DefaultTab": "Y\u00CAU TH\u00CDCH",
   "IsLightTheme": true
 }

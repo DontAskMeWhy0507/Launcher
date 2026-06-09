@@ -423,11 +423,28 @@ public partial class MainWindow : Window
 
     private static LauncherItem? FindLauncherItem(DependencyObject? source) { while (source is not null) { if (source is FrameworkElement { DataContext: LauncherItem item }) return item; source = VisualTreeHelper.GetParent(source); } return null; }
 
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        ApplyDwmWindowFrame();
+    }
+
+    private void ApplyDwmWindowFrame()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
+        var cornerPreference = DwmWindowCornerPreferenceRound;
+        _ = DwmSetWindowAttribute(hwnd, DwmWindowAttributeWindowCornerPreference, ref cornerPreference, sizeof(int));
+    }
+
     private void SendSystemCommand(IntPtr command) { var hwnd = new WindowInteropHelper(this).Handle; if (hwnd != IntPtr.Zero) SendMessage(hwnd, WmSysCommand, command, IntPtr.Zero); }
     private const int WmSysCommand = 0x0112;
     private static readonly IntPtr ScMinimize = new(0xF020);
     private static readonly IntPtr ScMaximize = new(0xF030);
     private static readonly IntPtr ScRestore = new(0xF120);
+    private const int DwmWindowAttributeWindowCornerPreference = 33;
+    private const int DwmWindowCornerPreferenceRound = 2;
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int attributeValue, int attributeSize);
 }

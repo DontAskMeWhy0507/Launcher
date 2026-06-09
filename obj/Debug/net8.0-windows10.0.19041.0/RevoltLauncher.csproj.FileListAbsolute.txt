@@ -97,3 +97,4 @@ F:\launcher\obj\Debug\net8.0-windows10.0.19041.0\refint\launcher.dll
 F:\launcher\obj\Debug\net8.0-windows10.0.19041.0\launcher.pdb
 F:\launcher\obj\Debug\net8.0-windows10.0.19041.0\RevoltLauncher.genruntimeconfig.cache
 F:\launcher\obj\Debug\net8.0-windows10.0.19041.0\ref\launcher.dll
+F:\launcher\obj\Debug\net8.0-windows10.0.19041.0\RevoltLauncher.sourcelink.json
