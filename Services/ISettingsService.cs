@@ -1,6 +1,6 @@
-using RevoltLauncher.Models;
+using Launcher.Models;
 
-namespace RevoltLauncher.Services;
+namespace Launcher.Services;
 
 public interface ISettingsService
 {

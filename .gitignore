@@ -1,0 +1,9 @@
+bin/
+obj/
+dist/
+Output/
+
+*.user
+*.suo
+*.tmp
+*.log

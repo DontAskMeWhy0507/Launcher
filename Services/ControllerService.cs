@@ -2,7 +2,7 @@ using Windows.Gaming.Input;
 using System.IO;
 using System.Threading;
 
-namespace RevoltLauncher.Services;
+namespace Launcher.Services;
 
 public interface IControllerService
 {

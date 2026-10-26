@@ -1,44 +1,55 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace RevoltLauncher.Converters;
+namespace Launcher.Converters;
 
 public sealed class ThemeBrushConverter : IValueConverter, IMultiValueConverter
 {
+    private static readonly ConcurrentDictionary<(bool isLight, string key), SolidColorBrush> _brushCache = new();
+    private static readonly ConcurrentDictionary<string, SolidColorBrush> _multiBrushCache = new();
+
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         var isLight = value is true;
         var key = parameter?.ToString() ?? string.Empty;
-        var color = key switch
-        {
-            "Window" => isLight ? "#FFFFFF" : "#0A0A0F",
-            "Root" => isLight ? "#FFFFFF" : "#0A0A0F",
-            "RootBorder" => isLight ? "#111827" : "#F9FAFB",
-            "Header" => isLight ? "#FFFFFF" : "#0C0C13",
-            "HeaderPill" => isLight ? "#FFFFFF" : "#0D0D13",
-            "HeaderPillBorder" => isLight ? "#D1D5DB" : "#2A2A36",
-            "Search" => isLight ? "#FFFFFF" : "#111118",
-            "SearchBorder" => isLight ? "#D1D5DB" : "#2A2A36",
-            "SearchText" => isLight ? "#111827" : "#E5E7EB",
-            "Placeholder" => isLight ? "#7A8496" : "#5F6272",
-            "ListPanel" => isLight ? "#FFFFFF" : "#08080D",
-            "ListBorder" => isLight ? "#D1D5DB" : "#2A2A36",
-            "Card" => isLight ? "#FFFFFF" : "#12121A",
-            "CardBorder" => isLight ? "#D1D5DB" : "#2A2A36",
-            "CardIcon" => isLight ? "#15151F" : "#15151F",
-            "CardName" => isLight ? "#253044" : "#A9A9B3",
-            "CardFooter" => isLight ? "#FFFFFF" : "#0D0D13",
-            "CardHoverBorder" => isLight ? "#F59E0B" : "#F2FFFFFF",
-            "CardCornerAccent" => isLight ? "#F59E0B" : "#FFFFFFFF",
-            "PlayButton" => isLight ? "#F8FAFC" : "#F2FFFFFF",
-            "PlayIcon" => isLight ? "#111827" : "#111827",
-            "Fab" => isLight ? "#111827" : "#F5F5F7",
-            "FabIcon" => isLight ? "#FFFFFF" : "#111111",
-            _ => isLight ? "#FFFFFF" : "#000000"
-        };
 
-        return new SolidColorBrush((Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+        return _brushCache.GetOrAdd((isLight, key), k =>
+        {
+            var (light, itemKey) = k;
+            var color = itemKey switch
+            {
+                "Window" => light ? "#FFFFFF" : "#0A0A0F",
+                "Root" => light ? "#FFFFFF" : "#0A0A0F",
+                "RootBorder" => light ? "#111827" : "#F9FAFB",
+                "Header" => light ? "#FFFFFF" : "#0C0C13",
+                "HeaderPill" => light ? "#FFFFFF" : "#0D0D13",
+                "HeaderPillBorder" => light ? "#D1D5DB" : "#2A2A36",
+                "Search" => light ? "#FFFFFF" : "#111118",
+                "SearchBorder" => light ? "#D1D5DB" : "#2A2A36",
+                "SearchText" => light ? "#111827" : "#E5E7EB",
+                "Placeholder" => light ? "#7A8496" : "#5F6272",
+                "ListPanel" => light ? "#FFFFFF" : "#08080D",
+                "ListBorder" => light ? "#D1D5DB" : "#2A2A36",
+                "Card" => light ? "#FFFFFF" : "#12121A",
+                "CardBorder" => light ? "#D1D5DB" : "#2A2A36",
+                "CardIcon" => light ? "#15151F" : "#15151F",
+                "CardName" => light ? "#253044" : "#A9A9B3",
+                "CardFooter" => light ? "#FFFFFF" : "#0D0D13",
+                "CardHoverBorder" => light ? "#F59E0B" : "#F2FFFFFF",
+                "CardCornerAccent" => light ? "#F59E0B" : "#FFFFFFFF",
+                "PlayButton" => light ? "#F8FAFC" : "#F2FFFFFF",
+                "PlayIcon" => light ? "#111827" : "#111827",
+                "Fab" => light ? "#111827" : "#F5F5F7",
+                "FabIcon" => light ? "#FFFFFF" : "#111111",
+                _ => light ? "#FFFFFF" : "#000000"
+            };
+
+            var brush = new SolidColorBrush((Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+            brush.Freeze();
+            return brush;
+        });
     }
 
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
@@ -48,21 +59,28 @@ public sealed class ThemeBrushConverter : IValueConverter, IMultiValueConverter
         var isMouseOver = values.Length > 2 && values[2] is true;
 
         var key = parameter?.ToString() ?? string.Empty;
-        var color = key switch
-        {
-            "TabBackground" when isChecked && isMouseOver => isLight ? "#CBD5E1" : "#F3F4F6",
-            "TabBackground" when isChecked => isLight ? "#E5E7EB" : "#FFFFFF",
-            "TabBackground" when isMouseOver => isLight ? "#F3F4F6" : "#1E1E29",
-            "TabBackground" => "Transparent",
-            "TabForeground" when isChecked => "#111827",
-            "TabForeground" when isMouseOver => isLight ? "#111827" : "#FFFFFF",
-            "TabForeground" => isLight ? "#6B7280" : "#858591",
-            _ => isLight ? "#FFFFFF" : "#000000"
-        };
+        var cacheKey = $"{isLight}_{isChecked}_{isMouseOver}_{key}";
 
-        return color == "Transparent"
-            ? System.Windows.Media.Brushes.Transparent
-            : new SolidColorBrush((Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+        return _multiBrushCache.GetOrAdd(cacheKey, _ =>
+        {
+            var color = key switch
+            {
+                "TabBackground" when isChecked && isMouseOver => isLight ? "#CBD5E1" : "#F3F4F6",
+                "TabBackground" when isChecked => isLight ? "#E5E7EB" : "#FFFFFF",
+                "TabBackground" when isMouseOver => isLight ? "#F3F4F6" : "#1E1E29",
+                "TabBackground" => "Transparent",
+                "TabForeground" when isChecked => "#111827",
+                "TabForeground" when isMouseOver => isLight ? "#111827" : "#FFFFFF",
+                "TabForeground" => isLight ? "#6B7280" : "#858591",
+                _ => isLight ? "#FFFFFF" : "#000000"
+            };
+
+            if (color == "Transparent") return System.Windows.Media.Brushes.Transparent;
+
+            var brush = new SolidColorBrush((Color)System.Windows.Media.ColorConverter.ConvertFromString(color));
+            brush.Freeze();
+            return brush;
+        });
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

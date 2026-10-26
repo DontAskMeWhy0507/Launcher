@@ -1,10 +1,10 @@
-using RevoltLauncher.Models;
+using Launcher.Models;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 
-namespace RevoltLauncher.Services;
+namespace Launcher.Services;
 
 public sealed class LauncherService : ILauncherService
 {
@@ -18,7 +18,7 @@ public sealed class LauncherService : ILauncherService
 
         try
         {
-            if (!File.Exists(item.ExecutablePath))
+            if (!File.Exists(item.ExecutablePath) && !Directory.Exists(item.ExecutablePath) && !LooksLikeShellCommand(item.ExecutablePath))
             {
                 ShowWarning($"Không tìm thấy shortcut/file của {item.Name}:\n{item.ExecutablePath}");
                 return Task.CompletedTask;
@@ -27,9 +27,12 @@ public sealed class LauncherService : ILauncherService
             var target = ResolveShortcut(item.ExecutablePath);
             
             // Check if target file exists, if not, try to launch the shortcut path itself as a fallback
-            string launchPath = File.Exists(target.FileName) ? target.FileName : item.ExecutablePath;
-            string launchArgs = File.Exists(target.FileName) ? target.Arguments : string.Empty;
-            string launchDir = File.Exists(target.FileName) ? target.WorkingDirectory : (Path.GetDirectoryName(item.ExecutablePath) ?? string.Empty);
+            var targetExists = File.Exists(target.FileName) || Directory.Exists(target.FileName);
+            string launchPath = targetExists ? target.FileName : item.ExecutablePath;
+            string launchArgs = targetExists ? target.Arguments : string.Empty;
+            string launchDir = targetExists
+                ? target.WorkingDirectory
+                : (Directory.Exists(item.ExecutablePath) ? item.ExecutablePath : (Path.GetDirectoryName(item.ExecutablePath) ?? string.Empty));
 
             var started = TryStart(launchPath, launchArgs, launchDir);
 
@@ -50,14 +53,24 @@ public sealed class LauncherService : ILauncherService
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(item.ExecutablePath) || !File.Exists(item.ExecutablePath))
+            if (string.IsNullOrWhiteSpace(item.ExecutablePath) || (!File.Exists(item.ExecutablePath) && !Directory.Exists(item.ExecutablePath)))
             {
                 ShowWarning($"Không tìm thấy shortcut/file:\n{item.ExecutablePath}");
                 return Task.CompletedTask;
             }
 
             var target = ResolveShortcut(item.ExecutablePath);
-            var selectPath = File.Exists(target.FileName) ? target.FileName : item.ExecutablePath;
+            var selectPath = (File.Exists(target.FileName) || Directory.Exists(target.FileName)) ? target.FileName : item.ExecutablePath;
+            if (Directory.Exists(selectPath))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = selectPath,
+                    UseShellExecute = true
+                });
+                return Task.CompletedTask;
+            }
+
             Process.Start(new ProcessStartInfo
             {
                 FileName = "explorer.exe",
@@ -73,44 +86,64 @@ public sealed class LauncherService : ILauncherService
         return Task.CompletedTask;
     }
 
-    public async Task<string> GetIconPathAsync(string filePath)
+    public Task<string> GetIconPathAsync(string filePath)
     {
-        try
+        return Task.Run(() =>
         {
-            var iconDir = Path.Combine(AppContext.BaseDirectory, "Assets", "Icons");
-            if (!Directory.Exists(iconDir)) Directory.CreateDirectory(iconDir);
-
-            var fileName = Path.GetFileNameWithoutExtension(filePath);
-            var uniqueId = DateTime.Now.Ticks;
-            var iconPath = Path.Combine(iconDir, $"{fileName}_{uniqueId}.png");
-
-            // 1. Try IShellItemImageFactory on ORIGINAL path
-            if (await TryExtractModernAsync(filePath, iconPath)) return iconPath;
-
-            // 2. Try IShellItemImageFactory on RESOLVED target
-            var target = ResolveShortcut(filePath);
-            if (File.Exists(target.FileName) && await TryExtractModernAsync(target.FileName, iconPath)) return iconPath;
-
-            // 3. Fallback to high-quality Shell Image List on both
-            var legacyResult = await GetLegacyIconPathAsync(filePath, iconPath);
-            if (legacyResult != "Assets/Icons/apps.png") return legacyResult;
-
-            if (File.Exists(target.FileName))
+            try
             {
-                return await GetLegacyIconPathAsync(target.FileName, iconPath);
-            }
-        }
-        catch { }
+                if (string.IsNullOrWhiteSpace(filePath))
+                {
+                    return AppPaths.DefaultIconPath;
+                }
 
-        return "Assets/Icons/apps.png";
+                AppPaths.EnsureDataDirectories();
+                var iconDir = AppPaths.IconDirectory;
+
+                var normalizedKey = Path.GetFullPath(filePath).ToLowerInvariant();
+                var lastWrite = File.Exists(filePath) ? File.GetLastWriteTimeUtc(filePath).Ticks : 0;
+                var hashInput = $"{normalizedKey}_{lastWrite}";
+                var hashBytes = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(hashInput));
+                var hashString = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                var safeName = string.Join("_", Path.GetFileNameWithoutExtension(filePath).Split(Path.GetInvalidFileNameChars()));
+                if (safeName.Length > 24) safeName = safeName[..24];
+                var iconPath = Path.Combine(iconDir, $"{safeName}_{hashString}.png");
+
+                // Reuse existing cached icon if already extracted
+                if (File.Exists(iconPath) && new FileInfo(iconPath).Length > 0)
+                {
+                    return iconPath;
+                }
+
+                // 1. Try IShellItemImageFactory on ORIGINAL path
+                if (TryExtractModern(filePath, iconPath)) return iconPath;
+
+                // 2. Try IShellItemImageFactory on RESOLVED target
+                var target = ResolveShortcut(filePath);
+                if (File.Exists(target.FileName) && TryExtractModern(target.FileName, iconPath)) return iconPath;
+
+                // 3. Fallback to high-quality Shell Image List on both
+                var legacyResult = GetLegacyIconPath(filePath, iconPath);
+                if (legacyResult != AppPaths.DefaultIconPath) return legacyResult;
+
+                if (File.Exists(target.FileName))
+                {
+                    return GetLegacyIconPath(target.FileName, iconPath);
+                }
+            }
+            catch { }
+
+            return AppPaths.DefaultIconPath;
+        });
     }
 
-    private async Task<bool> TryExtractModernAsync(string path, string outputPath)
+    private static bool TryExtractModern(string path, string outputPath)
     {
+        IShellItemImageFactory? factory = null;
         try
         {
             Guid guid = new Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b");
-            SHCreateItemFromParsingName(path, IntPtr.Zero, guid, out IShellItemImageFactory factory);
+            SHCreateItemFromParsingName(path, IntPtr.Zero, guid, out factory);
             if (factory != null)
             {
                 IntPtr hBitmap;
@@ -132,12 +165,21 @@ public sealed class LauncherService : ILauncherService
             }
         }
         catch { }
+        finally
+        {
+            if (factory != null)
+            {
+                try { Marshal.ReleaseComObject(factory); } catch { }
+            }
+        }
         return false;
     }
 
-    private async Task<string> GetLegacyIconPathAsync(string filePath, string iconPath)
+    private static string GetLegacyIconPath(string filePath, string iconPath)
     {
         IntPtr hIcon = IntPtr.Zero;
+        IntPtr hSmallIcon = IntPtr.Zero;
+        IImageList? iml = null;
         try
         {
             var shinfo = new SHFILEINFO();
@@ -145,7 +187,7 @@ public sealed class LauncherService : ILauncherService
             if (res != IntPtr.Zero)
             {
                 Guid iidImageList = new Guid("46EB5926-582E-4017-9FDF-E8998DAA0950");
-                if (SHGetImageList(SHIL_JUMBO, ref iidImageList, out IImageList iml) == 0 && iml != null)
+                if (SHGetImageList(SHIL_JUMBO, ref iidImageList, out iml) == 0 && iml != null)
                 {
                     iml.GetIcon(shinfo.iIcon, ILD_TRANSPARENT, ref hIcon);
                 }
@@ -153,7 +195,7 @@ public sealed class LauncherService : ILauncherService
 
             if (hIcon == IntPtr.Zero)
             {
-                ExtractIconEx(filePath, 0, out hIcon, out _, 1);
+                ExtractIconEx(filePath, 0, out hIcon, out hSmallIcon, 1);
             }
 
             if (hIcon != IntPtr.Zero)
@@ -167,8 +209,13 @@ public sealed class LauncherService : ILauncherService
         finally
         {
             if (hIcon != IntPtr.Zero) DestroyIcon(hIcon);
+            if (hSmallIcon != IntPtr.Zero) DestroyIcon(hSmallIcon);
+            if (iml != null)
+            {
+                try { Marshal.ReleaseComObject(iml); } catch { }
+            }
         }
-        return "Assets/Icons/apps.png";
+        return AppPaths.DefaultIconPath;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -261,15 +308,27 @@ public sealed class LauncherService : ILauncherService
                 UseShellExecute = true,
                 WorkingDirectory = Directory.Exists(workingDirectory)
                     ? workingDirectory
-                    : Path.GetDirectoryName(fileName)
+                    : (Path.GetDirectoryName(fileName) ?? string.Empty)
             });
 
-            return process is not null || fileName.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase);
+            return process is not null ||
+                   fileName.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) ||
+                   Directory.Exists(fileName) ||
+                   LooksLikeShellCommand(fileName);
         }
         catch
         {
             return false;
         }
+    }
+
+    private static bool LooksLikeShellCommand(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Scheme)) return true;
+        return !path.Contains(Path.DirectorySeparatorChar) &&
+               !path.Contains(Path.AltDirectorySeparatorChar) &&
+               path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
     }
 
     private static LaunchTarget ResolveShortcut(string path)
@@ -290,17 +349,28 @@ public sealed class LauncherService : ILauncherService
 
             try
             {
-                var shortcut = shellType.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, shell, [path]);
-                if (shortcut is null)
+                object? shortcut = null;
+                try
                 {
-                    return new LaunchTarget(path, string.Empty, Path.GetDirectoryName(path) ?? string.Empty);
-                }
+                    shortcut = shellType.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, shell, [path]);
+                    if (shortcut is null)
+                    {
+                        return new LaunchTarget(path, string.Empty, Path.GetDirectoryName(path) ?? string.Empty);
+                    }
 
-                var shortcutType = shortcut.GetType();
-                return new LaunchTarget(
-                    shortcutType.InvokeMember("TargetPath", System.Reflection.BindingFlags.GetProperty, null, shortcut, null)?.ToString() ?? path,
-                    shortcutType.InvokeMember("Arguments", System.Reflection.BindingFlags.GetProperty, null, shortcut, null)?.ToString() ?? string.Empty,
-                    shortcutType.InvokeMember("WorkingDirectory", System.Reflection.BindingFlags.GetProperty, null, shortcut, null)?.ToString() ?? string.Empty);
+                    var shortcutType = shortcut.GetType();
+                    return new LaunchTarget(
+                        shortcutType.InvokeMember("TargetPath", System.Reflection.BindingFlags.GetProperty, null, shortcut, null)?.ToString() ?? path,
+                        shortcutType.InvokeMember("Arguments", System.Reflection.BindingFlags.GetProperty, null, shortcut, null)?.ToString() ?? string.Empty,
+                        shortcutType.InvokeMember("WorkingDirectory", System.Reflection.BindingFlags.GetProperty, null, shortcut, null)?.ToString() ?? string.Empty);
+                }
+                finally
+                {
+                    if (shortcut != null)
+                    {
+                        try { Marshal.FinalReleaseComObject(shortcut); } catch { }
+                    }
+                }
             }
             finally
             {
@@ -313,9 +383,9 @@ public sealed class LauncherService : ILauncherService
         }
     }
 
-    private static void ShowInfo(string message) => MessageBox.Show(message, "Launcher", MessageBoxButton.OK, MessageBoxImage.Information);
-    private static void ShowWarning(string message) => MessageBox.Show(message, "Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
-    private static void ShowError(string message) => MessageBox.Show(message, "Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
+    private static void ShowInfo(string message) => UserDialog.ShowInfo(message);
+    private static void ShowWarning(string message) => UserDialog.ShowWarning(message);
+    private static void ShowError(string message) => UserDialog.ShowError(message);
 
     private sealed record LaunchTarget(string FileName, string Arguments, string WorkingDirectory);
 }

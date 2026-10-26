@@ -1,4 +1,4 @@
-namespace RevoltLauncher.Services;
+namespace Launcher.Services;
 
 public interface IStartupService
 {

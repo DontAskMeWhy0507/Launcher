@@ -1,8 +1,8 @@
-using RevoltLauncher.Models;
+using Launcher.Models;
 using System.IO;
 using System.Text.Json;
 
-namespace RevoltLauncher.Services;
+namespace Launcher.Services;
 
 public sealed class SettingsService : ISettingsService
 {
@@ -12,7 +12,7 @@ public sealed class SettingsService : ISettingsService
 
     public SettingsService()
     {
-        _configPath = Path.Combine(AppContext.BaseDirectory, "launchers.json");
+        _configPath = AppPaths.ConfigPath;
     }
 
     public async Task<LauncherSettings> LoadAsync()
@@ -20,14 +20,18 @@ public sealed class SettingsService : ISettingsService
         await _fileLock.WaitAsync();
         try
         {
-            var seedPath = Path.Combine(AppContext.BaseDirectory, "Data", "launchers.json");
-            if (!File.Exists(_configPath) ||
-                (File.Exists(seedPath) && File.GetLastWriteTimeUtc(seedPath) > File.GetLastWriteTimeUtc(_configPath)))
+            AppPaths.EnsureDataDirectories();
+
+            var legacyConfigPath = Path.Combine(AppContext.BaseDirectory, "launchers.json");
+            if (!File.Exists(_configPath) && File.Exists(legacyConfigPath))
             {
-                if (File.Exists(seedPath))
-                {
-                    File.Copy(seedPath, _configPath, overwrite: true);
-                }
+                File.Copy(legacyConfigPath, _configPath, overwrite: false);
+            }
+
+            var seedPath = AppPaths.SeedConfigPath;
+            if (!File.Exists(_configPath) && File.Exists(seedPath))
+            {
+                File.Copy(seedPath, _configPath, overwrite: false);
             }
 
             if (!File.Exists(_configPath))
@@ -35,9 +39,7 @@ public sealed class SettingsService : ISettingsService
                 return new LauncherSettings();
             }
 
-            await using var stream = File.OpenRead(_configPath);
-            return await JsonSerializer.DeserializeAsync<LauncherSettings>(stream, _jsonOptions)
-                   ?? new LauncherSettings();
+            return await ReadSettingsAsync(_configPath);
         }
         finally
         {
@@ -47,6 +49,8 @@ public sealed class SettingsService : ISettingsService
 
     public async Task SaveAsync(LauncherSettings settings)
     {
+        AppPaths.EnsureDataDirectories();
+
         var directory = Path.GetDirectoryName(_configPath);
         if (!string.IsNullOrWhiteSpace(directory))
         {
@@ -56,12 +60,40 @@ public sealed class SettingsService : ISettingsService
         await _fileLock.WaitAsync();
         try
         {
-            await using var stream = File.Create(_configPath);
-            await JsonSerializer.SerializeAsync(stream, settings, _jsonOptions);
+            var tempPath = _configPath + ".tmp";
+            var backupPath = _configPath + ".bak";
+
+            await using (var stream = File.Create(tempPath))
+            {
+                await JsonSerializer.SerializeAsync(stream, settings, _jsonOptions);
+            }
+
+            if (File.Exists(_configPath))
+            {
+                File.Copy(_configPath, backupPath, overwrite: true);
+            }
+
+            File.Move(tempPath, _configPath, overwrite: true);
         }
         finally
         {
             _fileLock.Release();
+        }
+    }
+
+    private async Task<LauncherSettings> ReadSettingsAsync(string path)
+    {
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            return await JsonSerializer.DeserializeAsync<LauncherSettings>(stream, _jsonOptions)
+                   ?? new LauncherSettings();
+        }
+        catch (JsonException) when (File.Exists(_configPath + ".bak"))
+        {
+            await using var backupStream = File.OpenRead(_configPath + ".bak");
+            return await JsonSerializer.DeserializeAsync<LauncherSettings>(backupStream, _jsonOptions)
+                   ?? new LauncherSettings();
         }
     }
 }

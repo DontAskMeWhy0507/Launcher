@@ -1,13 +1,19 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace RevoltLauncher.Models;
+namespace Launcher.Models;
 
 public sealed partial class LauncherItem : ObservableObject
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string Name { get; set; } = string.Empty;
-    public string IconPath { get; set; } = string.Empty;
-    public string ExecutablePath { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    [ObservableProperty]
+    private string _executablePath = string.Empty;
+
+    [ObservableProperty]
+    private string _iconPath = string.Empty;
 
     [ObservableProperty]
     private bool _isFavorite;

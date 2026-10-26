@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace RevoltLauncher.Converters;
+namespace Launcher.Converters;
 
 public sealed class FavoriteHeaderConverter : IValueConverter
 {

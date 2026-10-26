@@ -1,4 +1,4 @@
-# Revolt Launcher
+# Launcher
 
 Launcher được xây dựng bằng WPF (.NET).
 

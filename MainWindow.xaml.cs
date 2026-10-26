@@ -1,10 +1,11 @@
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 using System.Windows.Media.Animation;
-using RevoltLauncher.Models;
-using RevoltLauncher.ViewModels;
-using RevoltLauncher.Services;
+using Launcher.Models;
+using Launcher.ViewModels;
+using Launcher.Services;
 
-namespace RevoltLauncher;
+namespace Launcher;
 
 public partial class MainWindow : Window
 {
@@ -25,22 +26,38 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         _controllerService = controllerService;
         DataContext = viewModel;
-        SetupTrayIcon();
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Dispatcher.BeginInvoke(new Action(SetupTrayIcon), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         _controllerService.ButtonPressed += OnControllerButton;
         _controllerService.ButtonReleased += OnControllerButtonReleased;
         _controllerAHoldTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
         _controllerAHoldTimer.Tick += OnControllerAHoldTick;
         Opacity = 1;
-        Visibility = Visibility.Visible;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) { }
+    private void OnLoaded(object sender, RoutedEventArgs e) => ApplyStartupWindowMode();
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.OpenFullscreenOnStartup))
+        {
+            ApplyStartupWindowMode();
+        }
+    }
+
+    private void ApplyStartupWindowMode()
+    {
+        if (_viewModel.OpenFullscreenOnStartup && WindowState != WindowState.Maximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
 
     private void OnControllerButton(object? sender, ControllerButton button)
     {
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            if (!IsActive && WindowState == WindowState.Minimized) return;
+            if (!IsActive) return;
             switch (button)
             {
                 case ControllerButton.DPadLeft: MoveFocusOrDraggedItem(FocusNavigationDirection.Left); break;
@@ -58,6 +75,7 @@ public partial class MainWindow : Window
     {
         Dispatcher.BeginInvoke(new Action(() =>
         {
+            if (!IsActive) return;
             if (button == ControllerButton.A)
             {
                 EndControllerAPress();
@@ -263,7 +281,39 @@ public partial class MainWindow : Window
 
     private void SetupTrayIcon()
     {
-        _notifyIcon = new System.Windows.Forms.NotifyIcon { Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location), Visible = true, Text = "Revolt Launcher" };
+        System.Drawing.Icon? appIcon = null;
+        try
+        {
+            var exePath = Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+            if (!string.IsNullOrWhiteSpace(exePath) && System.IO.File.Exists(exePath))
+            {
+                appIcon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+            }
+        }
+        catch { }
+
+        if (appIcon == null)
+        {
+            var iconFile = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "apps.ico");
+            if (System.IO.File.Exists(iconFile))
+            {
+                try { appIcon = new System.Drawing.Icon(iconFile); } catch { }
+            }
+        }
+
+        _notifyIcon = new System.Windows.Forms.NotifyIcon
+        {
+            Icon = appIcon ?? System.Drawing.SystemIcons.Application,
+            Visible = true,
+            Text = "Launcher"
+        };
+        _notifyIcon.MouseClick += (s, e) =>
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                BringToFront();
+            }
+        };
         _notifyIcon.DoubleClick += (s, e) => BringToFront();
         var contextMenu = new System.Windows.Forms.ContextMenuStrip();
         contextMenu.Items.Add("Mở Launcher", null, (s, e) => BringToFront());
@@ -272,7 +322,26 @@ public partial class MainWindow : Window
         _notifyIcon.ContextMenuStrip = contextMenu;
     }
 
-    private void ExitApplication() { _isExplicitExit = true; _notifyIcon?.Dispose(); System.Windows.Application.Current.Shutdown(); }
+    public void DisposeTrayIcon()
+    {
+        try
+        {
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.Visible = false;
+                _notifyIcon.Dispose();
+                _notifyIcon = null;
+            }
+        }
+        catch { }
+    }
+
+    private void ExitApplication()
+    {
+        _isExplicitExit = true;
+        DisposeTrayIcon();
+        System.Windows.Application.Current.Shutdown();
+    }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e) { if (!_isExplicitExit) { e.Cancel = true; Hide(); } else base.OnClosing(e); }
 
@@ -286,8 +355,13 @@ public partial class MainWindow : Window
     {
         if (sender is Button button && button.DataContext is LauncherItem item)
         {
-            await ShowLaunchLoadingAsync();
+            var loadingTask = ShowLaunchLoadingAsync();
             await _viewModel.OpenLauncherAsync(item);
+            if (_viewModel.MinimizeAfterLaunch)
+            {
+                WindowState = WindowState.Minimized;
+            }
+            await loadingTask;
         }
     }
 
@@ -372,6 +446,27 @@ public partial class MainWindow : Window
     }
     private void OnFavoriteClick(object sender, RoutedEventArgs e) => e.Handled = true;
     private void OnLauncherPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _dragStartPoint = e.GetPosition(this);
+
+    private void OnLauncherPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Button button)
+        {
+            return;
+        }
+
+        button.Focus();
+        Keyboard.Focus(button);
+
+        if (button.ContextMenu is null)
+        {
+            return;
+        }
+
+        button.ContextMenu.PlacementTarget = button;
+        button.ContextMenu.DataContext = button.Tag;
+        button.ContextMenu.IsOpen = true;
+        e.Handled = true;
+    }
 
     private void OnLauncherPreviewMouseMove(object sender, MouseEventArgs e)
     {

@@ -1,26 +1,37 @@
 using Microsoft.Extensions.DependencyInjection;
-using RevoltLauncher.Services;
-using RevoltLauncher.ViewModels;
+using Launcher.Services;
+using Launcher.ViewModels;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
 
-namespace RevoltLauncher;
+namespace Launcher;
 
 public partial class App : Application
 {
-    private const string AppGuid = "RevoltLauncher-Unique-Mutex-Guid-12345";
+    private const string AppGuid = "Launcher-Unique-Mutex-Guid-12345";
     private static Mutex? _mutex;
     private ServiceProvider? _serviceProvider;
     private CancellationTokenSource? _pipeCts;
+    private MainWindow? _mainWindow;
+    private bool _controllerStarted;
+    private bool _ownsMutex;
 
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        var startInBackground = e.Args.Any(arg =>
+            arg.Equals("--background", StringComparison.OrdinalIgnoreCase) ||
+            arg.Equals("/background", StringComparison.OrdinalIgnoreCase));
+
         _mutex = new Mutex(true, AppGuid, out bool createdNew);
+        _ownsMutex = createdNew;
 
         if (!createdNew)
         {
-            SignalFirstInstance();
+            if (!startInBackground)
+            {
+                SignalFirstInstance();
+            }
             Shutdown();
             return;
         }
@@ -39,10 +50,88 @@ public partial class App : Application
         services.AddSingleton<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
-        var controllerService = _serviceProvider.GetRequiredService<IControllerService>();
-        controllerService.Start();
+        if (!startInBackground)
+        {
+            ShowMainWindow();
+        }
+        else
+        {
+            PreloadMainWindowInBackground();
+        }
+    }
 
-        _serviceProvider.GetRequiredService<MainWindow>().Show();
+    private void ShowMainWindow()
+    {
+        if (_serviceProvider is null)
+        {
+            return;
+        }
+
+        _mainWindow ??= _serviceProvider.GetRequiredService<MainWindow>();
+        MainWindow = _mainWindow;
+        _mainWindow.Opacity = 1;
+        _mainWindow.ShowActivated = true;
+        _mainWindow.ShowInTaskbar = true;
+        _mainWindow.Show();
+        _mainWindow.BringToFront();
+
+        StartControllerWhenWindowReady();
+    }
+
+    private void PreloadMainWindowInBackground()
+    {
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Dispatcher.InvokeAsync(PreloadMainWindow, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch
+            {
+                // Preloading is an optimization; normal show still works if it fails.
+            }
+        });
+    }
+
+    private void PreloadMainWindow()
+    {
+        if (_serviceProvider is null || _mainWindow is not null)
+        {
+            return;
+        }
+
+        _mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+        MainWindow = _mainWindow;
+
+        _mainWindow.ShowActivated = false;
+        _mainWindow.ShowInTaskbar = false;
+        _mainWindow.Opacity = 0;
+        _mainWindow.Show();
+        _mainWindow.Hide();
+        _mainWindow.Opacity = 1;
+        _mainWindow.ShowActivated = true;
+        _mainWindow.ShowInTaskbar = true;
+
+        StartControllerWhenWindowReady();
+    }
+
+    private void StartControllerWhenWindowReady()
+    {
+        var mainWindow = _mainWindow;
+        var serviceProvider = _serviceProvider;
+        if (_controllerStarted || mainWindow is null || serviceProvider is null)
+        {
+            return;
+        }
+
+        _controllerStarted = true;
+        mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            serviceProvider.GetRequiredService<IControllerService>().Start();
+        }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
     private void StartNamedPipeServer()
@@ -54,23 +143,20 @@ public partial class App : Application
             {
                 try
                 {
-                    using var server = new NamedPipeServerStream(AppGuid, PipeDirection.In);
+                    using var server = new NamedPipeServerStream(
+                        AppGuid,
+                        PipeDirection.In,
+                        NamedPipeServerStream.MaxAllowedServerInstances,
+                        PipeTransmissionMode.Byte,
+                        PipeOptions.Asynchronous);
+
                     await server.WaitForConnectionAsync(_pipeCts.Token);
                     using var reader = new StreamReader(server);
                     var message = await reader.ReadLineAsync();
 
                     if (message == "show")
                     {
-                        Dispatcher.Invoke(() =>
-                        {
-                            var mainWindow = MainWindow as MainWindow;
-                            if (mainWindow == null)
-                            {
-                                mainWindow = _serviceProvider?.GetService<MainWindow>();
-                                mainWindow?.Show();
-                            }
-                            mainWindow?.BringToFront();
-                        });
+                        _ = Dispatcher.BeginInvoke(new Action(ShowMainWindow));
                     }
                 }
                 catch (OperationCanceledException) { }
@@ -95,7 +181,7 @@ public partial class App : Application
     private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         LogException(e.Exception);
-        MessageBox.Show(e.Exception.Message, "Launcher error", MessageBoxButton.OK, MessageBoxImage.Error);
+        UserDialog.ShowError(e.Exception.Message);
         e.Handled = true;
     }
 
@@ -111,8 +197,9 @@ public partial class App : Application
     {
         try
         {
+            AppPaths.EnsureDataDirectories();
             File.AppendAllText(
-                Path.Combine(AppContext.BaseDirectory, "launcher-error.log"),
+                AppPaths.ErrorLogPath,
                 $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {exception}\n\n");
         }
         catch
@@ -124,8 +211,12 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _pipeCts?.Cancel();
+        _mainWindow?.DisposeTrayIcon();
         _serviceProvider?.Dispose();
-        _mutex?.ReleaseMutex();
+        if (_ownsMutex)
+        {
+            _mutex?.ReleaseMutex();
+        }
         _mutex?.Dispose();
         base.OnExit(e);
     }

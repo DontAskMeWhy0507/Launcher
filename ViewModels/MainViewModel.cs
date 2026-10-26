@@ -1,13 +1,20 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using RevoltLauncher.Models;
-using RevoltLauncher.Services;
+using Launcher.Models;
+using Launcher.Services;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Data;
 using WpfBrushes = System.Windows.Media.Brushes;
@@ -15,7 +22,7 @@ using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 using WpfListBox = System.Windows.Controls.ListBox;
 using WpfOrientation = System.Windows.Controls.Orientation;
 
-namespace RevoltLauncher.ViewModels;
+namespace Launcher.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -23,12 +30,19 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ILauncherService _launcherService;
     private readonly IStartupService _startupService;
     private List<ScanCandidate> _lastScanResults = [];
+    private CancellationTokenSource? _scanCts;
+    private GitHubReleaseAsset? _pendingUpdateInstaller;
+    private string _pendingUpdateVersion = string.Empty;
+    private const string FavoriteTab = "YÊU THÍCH";
+    private const string GameCategory = "KHO GAME";
+    private const string AppCategory = "ỨNG DỤNG";
+    private const string LatestReleaseApiUrl = "https://api.github.com/repos/DontAskMeWhy0507/Launcher/releases/latest";
 
     [ObservableProperty]
     private string _searchText = string.Empty;
 
     [ObservableProperty]
-    private string _activeTab = "YÊU THÍCH";
+    private string _activeTab = FavoriteTab;
 
     [ObservableProperty]
     private bool _startWithWindows;
@@ -37,14 +51,69 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _isLightTheme;
 
     [ObservableProperty]
+    private bool _openFullscreenOnStartup;
+
+    [ObservableProperty]
+    private bool _minimizeAfterLaunch;
+
+    [ObservableProperty]
     private bool _isScanning;
+
+    [ObservableProperty]
+    private bool _isSettingsPage;
+
+    [ObservableProperty]
+    private bool _scanStartMenuAndDesktop = true;
+
+    [ObservableProperty]
+    private bool _scanRecentSoftware = true;
+
+    [ObservableProperty]
+    private bool _scanRegistry = true;
+
+    [ObservableProperty]
+    private bool _scanUserProfile = true;
+
+    [ObservableProperty]
+    private bool _scanDrives;
+
+    [ObservableProperty]
+    private string _scanCustomPath = string.Empty;
+
+    [ObservableProperty]
+    private string _scanStatus = "Chưa scan.";
+
+
+    [ObservableProperty]
+    private bool _isUpdating;
+
+    [ObservableProperty]
+    private string _updateStatus = "Sẵn sàng kiểm tra bản mới.";
+
+    [ObservableProperty]
+    private bool _hasUpdate;
 
     private bool _isLoaded;
     private bool _isInitializing = true;
+    private bool _startupStateLoaded;
 
-    public ObservableCollection<LauncherItem> Launchers { get; } = [];
-    public ICollectionView FilteredLaunchers { get; }
-    public string[] Tabs { get; } = ["YÊU THÍCH", "KHO GAME", "ỨNG DỤNG"];
+    [ObservableProperty]
+    private ObservableCollection<LauncherItem> _launchers = [];
+
+    [ObservableProperty]
+    private ObservableCollection<ScanResultItem> _scanResults = [];
+
+    [ObservableProperty]
+    private ICollectionView _filteredLaunchers;
+
+    partial void OnLaunchersChanged(ObservableCollection<LauncherItem> value)
+    {
+        FilteredLaunchers = CollectionViewSource.GetDefaultView(value);
+        FilteredLaunchers.Filter = FilterLauncher;
+    }
+    public string[] Tabs { get; } = [FavoriteTab, GameCategory, AppCategory];
+    public bool IsLauncherTab => !IsSettingsPage;
+    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.0.0"}";
 
     public MainViewModel(ISettingsService settingsService, ILauncherService launcherService, IStartupService startupService)
     {
@@ -53,38 +122,97 @@ public sealed partial class MainViewModel : ObservableObject
         _startupService = startupService;
         FilteredLaunchers = CollectionViewSource.GetDefaultView(Launchers);
         FilteredLaunchers.Filter = FilterLauncher;
-        StartWithWindows = _startupService.IsEnabled();
 
         _isInitializing = true;
-        ActiveTab = "YÊU THÍCH";
+        ActiveTab = FavoriteTab;
         _ = LoadAsync();
+        _ = LoadStartupStateAsync();
     }
 
     private async Task LoadAsync()
     {
         if (_isLoaded) return;
         var settings = await _settingsService.LoadAsync();
-        IsLightTheme = settings.IsLightTheme;
+        var normalizedDefaultTab = NormalizeTab(settings.DefaultTab);
+        var shouldSaveNormalizedSettings = !string.Equals(settings.DefaultTab, normalizedDefaultTab, StringComparison.Ordinal);
 
-        await Application.Current.Dispatcher.InvokeAsync(async () =>
+        await Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            Launchers.Clear();
+            IsLightTheme = settings.IsLightTheme;
+            OpenFullscreenOnStartup = settings.OpenFullscreenOnStartup;
+            MinimizeAfterLaunch = settings.MinimizeAfterLaunch;
+            ActiveTab = normalizedDefaultTab;
+            var newLaunchers = new ObservableCollection<LauncherItem>();
             foreach (var item in settings.Launchers.OrderBy(x => x.Order))
             {
-                // Repair missing icons
-                if (string.IsNullOrEmpty(item.IconPath) || item.IconPath == "Assets/Icons/apps.png" || 
-                    (item.IconPath.StartsWith("Assets/Icons/") && !File.Exists(Path.Combine(AppContext.BaseDirectory, item.IconPath))))
+                var normalizedCategory = NormalizeCategory(item.Category);
+                if (!string.Equals(item.Category, normalizedCategory, StringComparison.Ordinal))
                 {
-                    item.IconPath = await _launcherService.GetIconPathAsync(item.ExecutablePath);
+                    item.Category = normalizedCategory;
+                    shouldSaveNormalizedSettings = true;
                 }
-                Launchers.Add(item);
+
+                newLaunchers.Add(item);
             }
+            Launchers = newLaunchers;
             _isLoaded = true;
             _isInitializing = false;
-            FilteredLaunchers.Refresh();
-
-            await SaveAsync();
         });
+
+        if (shouldSaveNormalizedSettings)
+        {
+            await SaveAsync();
+        }
+
+        _ = RepairMissingIconsAsync();
+    }
+
+    private async Task LoadStartupStateAsync()
+    {
+        try
+        {
+            var enabled = await Task.Run(_startupService.IsEnabled);
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                StartWithWindows = enabled;
+                _startupStateLoaded = true;
+            });
+        }
+        catch
+        {
+            await Application.Current.Dispatcher.InvokeAsync(() => _startupStateLoaded = true);
+        }
+    }
+
+    private async Task RepairMissingIconsAsync()
+    {
+        try
+        {
+            var repaired = false;
+            foreach (var item in Launchers.ToList())
+            {
+                if (!ShouldRepairIcon(item.IconPath))
+                {
+                    continue;
+                }
+
+                var iconPath = await _launcherService.GetIconPathAsync(item.ExecutablePath);
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    item.IconPath = iconPath;
+                    repaired = true;
+                }, System.Windows.Threading.DispatcherPriority.Background);
+            }
+
+            if (repaired)
+            {
+                await SaveAsync();
+            }
+        }
+        catch
+        {
+            // Icon repair is best-effort and must not slow or break opening the launcher.
+        }
     }
 
     private bool FilterLauncher(object value)
@@ -96,19 +224,76 @@ public sealed partial class MainViewModel : ObservableObject
 
         var matchesTab = ActiveTab switch
         {
-            "YÊU THÍCH" => item.IsFavorite,
-            "KHO GAME" => item.Category == "KHO GAME",
-            _ => item.Category == "ỨNG DỤNG"
+            FavoriteTab => item.IsFavorite,
+            GameCategory => NormalizeCategory(item.Category) == GameCategory,
+            _ => NormalizeCategory(item.Category) == AppCategory
         };
 
         return matchesTab && (string.IsNullOrWhiteSpace(SearchText)
                || item.Name.Contains(SearchText, StringComparison.CurrentCultureIgnoreCase));
     }
 
+    private static string NormalizeTab(string? tab)
+    {
+        var normalized = NormalizeVietnameseText(tab);
+        if (normalized.Contains("YÊU", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("YEU", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("YÃ", StringComparison.OrdinalIgnoreCase))
+        {
+            return FavoriteTab;
+        }
+
+        if (normalized.Contains(GameCategory, StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameCategory;
+        }
+
+        return AppCategory;
+    }
+
+    private static string NormalizeCategory(string? category)
+    {
+        var normalized = NormalizeVietnameseText(category);
+        return (normalized.Contains(GameCategory, StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase))
+            ? GameCategory
+            : AppCategory;
+    }
+
+    private static string NormalizeVietnameseText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+
+        // Only attempt mojibake repair if string contains typical UTF-8 misread artifacts (e.g. "Ã", "á»", "Ä")
+        if (trimmed.Contains('Ã') || trimmed.Contains("á»", StringComparison.Ordinal) || trimmed.Contains('Ä'))
+        {
+            try
+            {
+                var repaired = Encoding.UTF8.GetString(Encoding.Latin1.GetBytes(trimmed));
+                if (!repaired.Contains('\uFFFD') && !repaired.Contains('?'))
+                {
+                    return repaired;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return trimmed;
+    }
+
     partial void OnSearchTextChanged(string value) => FilteredLaunchers.Refresh();
 
     partial void OnActiveTabChanged(string value)
     {
+        IsSettingsPage = false;
         FilteredLaunchers.Refresh();
         if (!_isInitializing)
         {
@@ -116,7 +301,17 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    partial void OnStartWithWindowsChanged(bool value) => _startupService.SetEnabled(value);
+    partial void OnIsSettingsPageChanged(bool value) => OnPropertyChanged(nameof(IsLauncherTab));
+
+    partial void OnStartWithWindowsChanged(bool value)
+    {
+        if (!_startupStateLoaded)
+        {
+            return;
+        }
+
+        _ = Task.Run(() => _startupService.SetEnabled(value));
+    }
 
     partial void OnIsLightThemeChanged(bool value)
     {
@@ -126,8 +321,30 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    partial void OnOpenFullscreenOnStartupChanged(bool value)
+    {
+        if (!_isInitializing)
+        {
+            _ = SaveAsync();
+        }
+    }
+
+    partial void OnMinimizeAfterLaunchChanged(bool value)
+    {
+        if (!_isInitializing)
+        {
+            _ = SaveAsync();
+        }
+    }
+
     [RelayCommand]
     public void SelectTab(string tab) => ActiveTab = tab;
+
+    [RelayCommand]
+    private void OpenSettings() => IsSettingsPage = true;
+
+    [RelayCommand]
+    private void CloseSettings() => IsSettingsPage = false;
 
     [RelayCommand]
     private async Task LaunchAsync(LauncherItem item) => await _launcherService.LaunchAsync(item);
@@ -155,68 +372,314 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task AddFolderAsync()
+    {
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Chọn thư mục muốn thêm vào launcher",
+            UseDescriptionForTitle = true
+        };
+
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            await AddFileAsync(dialog.SelectedPath);
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddCalculatorAsync()
+    {
+        var calculatorPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "calc.exe");
+        await AddFileAsync(File.Exists(calculatorPath) ? calculatorPath : "calc.exe", "CALCULATOR");
+    }
+
+    [RelayCommand]
+    private async Task AddClockAsync()
+    {
+        await AddFileAsync("ms-clock:", "CLOCK");
+    }
+
+    [RelayCommand]
     private async Task ScanLaunchersAsync()
     {
-        if (_lastScanResults.Count > 0)
-        {
-            var cachedSelection = ShowScanSelectionDialog(_lastScanResults, out var rescanRequested);
-            if (!rescanRequested)
-            {
-                await AddSelectedScanCandidatesAsync(cachedSelection);
-                return;
-            }
-        }
-
-        var options = ShowScanOptionsDialog();
-        if (options is null)
-        {
-            var cachedSelection = _lastScanResults.Count > 0
-                ? ShowScanSelectionDialog(_lastScanResults, out _)
-                : [];
-            await AddSelectedScanCandidatesAsync(cachedSelection);
-            return;
-        }
-
+        if (IsScanning) return;
         IsScanning = true;
-        var selectedCandidates = Array.Empty<ScanCandidate>() as IReadOnlyList<ScanCandidate>;
+        ScanStatus = "Đang scan...";
+        ScanResults.Clear();
         var existingKeys = GetExistingLauncherKeys();
+        _scanCts?.Cancel();
+        _scanCts = new CancellationTokenSource();
+        var token = _scanCts.Token;
+        var options = new ScanOptions(
+            ScanStartMenuAndDesktop,
+            ScanUserProfile,
+            ScanRegistry,
+            ScanDrives,
+            ScanRecentSoftware,
+            ScanCustomPath);
 
         try
         {
-            var candidates = await Task.Run(() => FindInstalledLauncherCandidates(options));
+            var candidates = await Task.Run(() => FindInstalledLauncherCandidates(options, token), token);
             var pendingCandidates = FilterNewCandidates(candidates, existingKeys);
 
-            if (pendingCandidates.Count == 0)
+            await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                MessageBox.Show("Không tìm thấy ứng dụng/game mới.", "Scan", MessageBoxButton.OK, MessageBoxImage.Information);
-                _lastScanResults = [];
-                return;
-            }
+                foreach (var candidate in pendingCandidates.Take(400))
+                {
+                    ScanResults.Add(new ScanResultItem(candidate));
+                }
+            });
+            _ = LoadScanResultIconsAsync(token);
 
-            var previewCandidates = new List<ScanCandidate>();
-            foreach (var candidate in pendingCandidates)
-            {
-                var iconPath = await _launcherService.GetIconPathAsync(candidate.ExecutablePath);
-                previewCandidates.Add(candidate with { IconPath = iconPath });
-            }
-
-            _lastScanResults = previewCandidates;
-            IsScanning = false;
-
-            selectedCandidates = ShowScanSelectionDialog(_lastScanResults, out var rescanRequested);
-            if (rescanRequested)
-            {
-                _lastScanResults = [];
-                await ScanLaunchersAsync();
-                return;
-            }
+            _lastScanResults = pendingCandidates;
+            ScanStatus = pendingCandidates.Count == 0
+                ? "Không tìm thấy ứng dụng/game mới."
+                : $"Tìm thấy {pendingCandidates.Count} mục mới. Hiển thị {ScanResults.Count} mục đầu tiên.";
+        }
+        catch (OperationCanceledException)
+        {
+            ScanStatus = "Đã dừng scan.";
         }
         finally
         {
             IsScanning = false;
         }
+    }
+
+    private async Task LoadScanResultIconsAsync(CancellationToken cancellationToken)
+    {
+        var items = ScanResults.ToList();
+        using var semaphore = new SemaphoreSlim(4);
+        var tasks = items.Select(async result =>
+        {
+            if (cancellationToken.IsCancellationRequested) return;
+            try
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    if (cancellationToken.IsCancellationRequested) return;
+                    var iconPath = await _launcherService.GetIconPathAsync(result.ExecutablePath);
+                    if (!string.IsNullOrWhiteSpace(iconPath) && iconPath != AppPaths.DefaultIconPath)
+                    {
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            if (!cancellationToken.IsCancellationRequested)
+                            {
+                                result.IconPath = iconPath;
+                            }
+                        }, System.Windows.Threading.DispatcherPriority.Background);
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch
+            {
+                // Icon preview is best-effort; adding the launcher still resolves icons later.
+            }
+        });
+
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch { }
+    }
+
+    [RelayCommand]
+    private void CancelScan()
+    {
+        _scanCts?.Cancel();
+        ScanStatus = "Đang dừng scan...";
+    }
+
+    [RelayCommand]
+    private void SelectAllScanResults()
+    {
+        foreach (var result in ScanResults)
+        {
+            result.IsSelected = true;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearScanResultsSelection()
+    {
+        foreach (var result in ScanResults)
+        {
+            result.IsSelected = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddSelectedScanResultsAsync()
+    {
+        var selectedCandidates = ScanResults
+            .Where(result => result.IsSelected)
+            .Select(result => result.Candidate)
+            .ToList();
 
         await AddSelectedScanCandidatesAsync(selectedCandidates);
+        ScanResults = new ObservableCollection<ScanResultItem>(ScanResults.Where(result => !result.IsSelected));
+        ScanStatus = selectedCandidates.Count == 0
+            ? "Chưa chọn mục nào."
+            : $"Đã thêm {selectedCandidates.Count} mục đã chọn.";
+    }
+
+    [RelayCommand]
+    private void BrowseScanPath()
+    {
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Chọn thư mục muốn scan",
+            UseDescriptionForTitle = true
+        };
+
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            ScanCustomPath = dialog.SelectedPath;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdateAsync()
+    {
+        if (IsUpdating) return;
+
+        IsUpdating = true;
+        HasUpdate = false;
+        _pendingUpdateInstaller = null;
+        _pendingUpdateVersion = string.Empty;
+        UpdateStatus = "Đang kiểm tra bản mới...";
+
+        try
+        {
+            var release = await GetLatestReleaseAsync();
+            if (release is null)
+            {
+                UpdateStatus = "Không đọc được thông tin bản mới.";
+                return;
+            }
+
+            var latestVersion = ParseVersion(release.TagName);
+            var currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            if (latestVersion is not null && currentVersion is not null && latestVersion <= currentVersion)
+            {
+                UpdateStatus = $"Đang dùng bản mới nhất: hiện tại {FormatVersion(currentVersion)}, mới nhất {FormatReleaseVersion(release.TagName, latestVersion)}.";
+                return;
+            }
+
+            var installer = release.Assets.FirstOrDefault(asset =>
+                asset.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                asset.Name.Contains("Setup", StringComparison.OrdinalIgnoreCase));
+
+            if (installer is null)
+            {
+                UpdateStatus = "Release mới chưa có file LauncherSetup.exe.";
+                return;
+            }
+
+            _pendingUpdateInstaller = installer;
+            _pendingUpdateVersion = FormatReleaseVersion(release.TagName, latestVersion);
+            HasUpdate = true;
+            UpdateStatus = $"Có bản mới: hiện tại {FormatVersion(currentVersion)}, mới nhất {FormatReleaseVersion(release.TagName, latestVersion)}. Bấm UPDATE để tải và cài.";
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus = $"Kiểm tra update lỗi: {ex.Message}";
+        }
+        finally
+        {
+            IsUpdating = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task UpdateLauncherAsync()
+    {
+        if (IsUpdating) return;
+
+        if (_pendingUpdateInstaller is null)
+        {
+            await CheckForUpdateAsync();
+            if (_pendingUpdateInstaller is null) return;
+        }
+
+        IsUpdating = true;
+        try
+        {
+            using var httpClient = CreateGitHubHttpClient();
+            var downloadPath = Path.Combine(Path.GetTempPath(), _pendingUpdateInstaller.Name);
+            var updateVersion = string.IsNullOrWhiteSpace(_pendingUpdateVersion) ? _pendingUpdateInstaller.Name : _pendingUpdateVersion;
+            UpdateStatus = $"Đang tải bản {updateVersion} ({_pendingUpdateInstaller.Name})...";
+            await using (var input = await httpClient.GetStreamAsync(_pendingUpdateInstaller.DownloadUrl))
+            await using (var output = File.Create(downloadPath))
+            {
+                await input.CopyToAsync(output);
+            }
+
+            UpdateStatus = $"Đang mở installer bản {updateVersion}...";
+            Process.Start(new ProcessStartInfo(downloadPath)
+            {
+                UseShellExecute = true,
+                Arguments = "/silent /closeapplications"
+            });
+
+            Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus = $"Update lỗi: {ex.Message}";
+        }
+        finally
+        {
+            IsUpdating = false;
+        }
+    }
+
+    private static async Task<GitHubRelease?> GetLatestReleaseAsync()
+    {
+        using var httpClient = CreateGitHubHttpClient();
+        return await httpClient.GetFromJsonAsync<GitHubRelease>(LatestReleaseApiUrl);
+    }
+
+    private static HttpClient CreateGitHubHttpClient()
+    {
+        var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Launcher-Updater");
+        return httpClient;
+    }
+
+    private static Version? ParseVersion(string? tagName)
+    {
+        if (string.IsNullOrWhiteSpace(tagName)) return null;
+        var normalized = tagName.Trim().TrimStart('v', 'V');
+        return Version.TryParse(normalized, out var version) ? version : null;
+    }
+
+    private static string FormatVersion(Version? version)
+    {
+        return version is null ? "không rõ" : $"v{FormatVersionNumber(version)}";
+    }
+
+    private static string FormatReleaseVersion(string tagName, Version? parsedVersion)
+    {
+        if (parsedVersion is null) return tagName;
+        var formatted = $"v{FormatVersionNumber(parsedVersion)}";
+        return tagName.Equals(formatted, StringComparison.OrdinalIgnoreCase) ? formatted : $"{formatted} ({tagName})";
+    }
+
+    private static string? FormatVersionNumber(Version? version)
+    {
+        if (version is null) return null;
+
+        var fieldCount = version.Build >= 0 ? 3 : 2;
+        return version.ToString(fieldCount);
     }
 
     private HashSet<string> GetExistingLauncherKeys()
@@ -275,7 +738,7 @@ public sealed partial class MainViewModel : ObservableObject
                     IconPath = string.IsNullOrWhiteSpace(candidate.IconPath)
                         ? await _launcherService.GetIconPathAsync(candidate.ExecutablePath)
                         : candidate.IconPath,
-                    Category = candidate.Category,
+                    Category = NormalizeCategory(candidate.Category),
                     Order = Launchers.Count
                 });
 
@@ -290,11 +753,9 @@ public sealed partial class MainViewModel : ObservableObject
                 await SaveAsync();
             }
 
-            MessageBox.Show(
-                added > 0 ? $"Đã thêm {added} ứng dụng/game mới." : "Chưa thêm ứng dụng/game nào.",
-                "Scan",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            ScanStatus = added > 0
+                ? $"Đã thêm {added} ứng dụng/game mới."
+                : "Chưa thêm ứng dụng/game nào.";
         }
         finally
         {
@@ -302,7 +763,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    public async Task AddFileAsync(string filePath)
+    public async Task AddFileAsync(string filePath, string? displayName = null)
     {
         if (string.IsNullOrWhiteSpace(filePath)) return;
 
@@ -317,17 +778,21 @@ public sealed partial class MainViewModel : ObservableObject
                 filePath = uri.LocalPath;
             }
 
-            if (!File.Exists(filePath) && !Directory.Exists(filePath))
+            if (!File.Exists(filePath) && !Directory.Exists(filePath) && !LooksLikeShellCommand(filePath))
             {
-                MessageBox.Show($"Không tìm thấy file hoặc thư mục tại đường dẫn:\n\"{filePath}\"\n\nVui lòng kiểm tra lại quyền truy cập hoặc file gốc.", 
-                                "Lỗi thêm ứng dụng", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowThemedMessage(
+                    "Lỗi thêm ứng dụng",
+                    $"Không tìm thấy file hoặc thư mục tại đường dẫn:\n\"{filePath}\"\n\nVui lòng kiểm tra lại quyền truy cập hoặc file gốc.");
                 return;
             }
 
-            string fileName = Path.GetFileNameWithoutExtension(filePath).ToUpperInvariant();
+            string fileName = string.IsNullOrWhiteSpace(displayName)
+                ? Path.GetFileNameWithoutExtension(filePath).ToUpperInvariant()
+                : displayName.Trim().ToUpperInvariant();
+            if (Path.GetFileName(filePath).Equals("calc.exe", StringComparison.OrdinalIgnoreCase)) fileName = "CALCULATOR";
             if (string.IsNullOrWhiteSpace(fileName)) fileName = "ỨNG DỤNG MỚI";
 
-            string category = ActiveTab == "KHO GAME" ? "KHO GAME" : "ỨNG DỤNG";
+            string category = ActiveTab == GameCategory ? GameCategory : AppCategory;
             string iconPath = await _launcherService.GetIconPathAsync(filePath);
 
             var newItem = new LauncherItem
@@ -349,69 +814,12 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Có lỗi xảy ra khi xử lý file:\n{ex.Message}", "Lỗi hệ thống", MessageBoxButton.OK, MessageBoxImage.Error);
+            ShowThemedMessage("Lỗi hệ thống", $"Có lỗi xảy ra khi xử lý file:\n{ex.Message}");
         }
     }
 
-    private static ScanOptions? ShowScanOptionsDialog()
-    {
-        var startMenu = new System.Windows.Controls.CheckBox { Content = "Start Menu và Desktop", IsChecked = true, Margin = new Thickness(0, 0, 0, 8) };
-        var profile = new System.Windows.Controls.CheckBox { Content = "C Profile / AppData / Downloads", IsChecked = true, Margin = new Thickness(0, 0, 0, 8) };
-        var registry = new System.Windows.Controls.CheckBox { Content = "Registry installed apps", IsChecked = true, Margin = new Thickness(0, 0, 0, 8) };
-        var drives = new System.Windows.Controls.CheckBox { Content = "Các ổ đĩa và thư mục game phổ biến", IsChecked = false, Margin = new Thickness(0, 0, 0, 8) };
 
-        var driveHint = new TextBlock
-        {
-            Text = "Quét ổ đĩa có thể lâu hơn vì phải duyệt nhiều thư mục.",
-            Foreground = WpfBrushes.DimGray,
-            FontSize = 12,
-            Margin = new Thickness(0, 0, 0, 16)
-        };
-
-        var scanButton = new Button { Content = "Bắt đầu scan", MinWidth = 110, Margin = new Thickness(0, 0, 8, 0), IsDefault = true };
-        var cancelButton = new Button { Content = "Hủy", MinWidth = 72, IsCancel = true };
-        var buttons = new StackPanel { Orientation = WpfOrientation.Horizontal, HorizontalAlignment = WpfHorizontalAlignment.Right };
-        buttons.Children.Add(scanButton);
-        buttons.Children.Add(cancelButton);
-
-        var root = new StackPanel { Margin = new Thickness(18) };
-        root.Children.Add(new TextBlock
-        {
-            Text = "Chọn nguồn muốn scan",
-            FontSize = 16,
-            FontWeight = FontWeights.Bold,
-            Margin = new Thickness(0, 0, 0, 14)
-        });
-        root.Children.Add(startMenu);
-        root.Children.Add(profile);
-        root.Children.Add(registry);
-        root.Children.Add(drives);
-        root.Children.Add(driveHint);
-        root.Children.Add(buttons);
-
-        var dialog = new Window
-        {
-            Title = "Tuỳ chọn scan",
-            Width = 420,
-            Height = 300,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = Application.Current.MainWindow,
-            Content = root
-        };
-
-        scanButton.Click += (_, _) => dialog.DialogResult = true;
-
-        return dialog.ShowDialog() == true
-            ? new ScanOptions(
-                startMenu.IsChecked == true,
-                profile.IsChecked == true,
-                registry.IsChecked == true,
-                drives.IsChecked == true)
-            : null;
-    }
-
-    private static IReadOnlyList<ScanCandidate> FindInstalledLauncherCandidates(ScanOptions options)
+    private static IReadOnlyList<ScanCandidate> FindInstalledLauncherCandidates(ScanOptions options, CancellationToken cancellationToken = default)
     {
         var candidates = new Dictionary<string, ScanCandidate>(StringComparer.OrdinalIgnoreCase);
 
@@ -419,7 +827,17 @@ public sealed partial class MainViewModel : ObservableObject
         {
             foreach (var shortcut in EnumerateShortcutLocations())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 AddCandidate(candidates, shortcut);
+            }
+        }
+
+        if (options.ScanRecentSoftware)
+        {
+            foreach (var recentPath in EnumerateRecentSoftwareEntries())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                AddCandidate(candidates, recentPath, "Recent");
             }
         }
 
@@ -427,6 +845,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             foreach (var registryPath in EnumerateRegistryInstallEntries())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 AddCandidate(candidates, registryPath);
             }
         }
@@ -435,6 +854,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             foreach (var profilePath in EnumerateUserProfileApplications())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 AddCandidate(candidates, profilePath);
             }
         }
@@ -443,230 +863,28 @@ public sealed partial class MainViewModel : ObservableObject
         {
             foreach (var drivePath in EnumerateKnownDriveApplications())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 AddCandidate(candidates, drivePath);
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(options.CustomPath) && Directory.Exists(options.CustomPath))
+        {
+            foreach (var customPath in EnumerateCandidateFiles(options.CustomPath, SearchOption.AllDirectories, maxDepth: 5))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                AddCandidate(candidates, customPath);
+            }
+        }
+
         return candidates.Values
-            .OrderBy(candidate => candidate.Category == "KHO GAME" ? 0 : 1)
+            .OrderBy(candidate => NormalizeCategory(candidate.Category) == GameCategory ? 0 : 1)
+            .ThenByDescending(candidate => candidate.Source == "Recent")
             .ThenBy(candidate => candidate.Name)
             .ToList();
     }
 
-    private static IReadOnlyList<ScanCandidate> ShowScanSelectionDialog(IReadOnlyList<ScanCandidate> candidates, out bool rescanRequested)
-    {
-        rescanRequested = false;
-        var choices = candidates.Select(candidate => new ScanCandidateChoice(candidate)).ToList();
-        var list = new WpfListBox
-        {
-            BorderThickness = new Thickness(0),
-            Background = WpfBrushes.Transparent,
-            Margin = new Thickness(0, 12, 0, 12)
-        };
 
-        foreach (var choice in choices)
-        {
-            var textPanel = new StackPanel
-            {
-                Margin = new Thickness(10, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            textPanel.Children.Add(new TextBlock
-            {
-                Text = $"{choice.Candidate.Category}  •  {choice.Candidate.Source}  •  {choice.Candidate.Drive}",
-                Foreground = choice.Candidate.Category == "KHO GAME" ? WpfBrushes.DarkOrange : WpfBrushes.SteelBlue,
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 0, 2)
-            });
-
-            textPanel.Children.Add(new TextBlock
-            {
-                Text = choice.Candidate.Name,
-                Foreground = WpfBrushes.Black,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold
-            });
-
-            textPanel.Children.Add(new TextBlock
-            {
-                Text = choice.Candidate.ExecutablePath,
-                Foreground = WpfBrushes.DimGray,
-                FontSize = 11,
-                TextTrimming = TextTrimming.CharacterEllipsis
-            });
-
-            var row = new StackPanel
-            {
-                Orientation = WpfOrientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            row.Children.Add(CreateScanIconImage(choice.Candidate.IconPath));
-            row.Children.Add(textPanel);
-
-            var checkbox = new System.Windows.Controls.CheckBox
-            {
-                IsChecked = false,
-                Margin = new Thickness(8),
-                VerticalContentAlignment = VerticalAlignment.Center,
-                Content = row
-            };
-            choice.CheckBox = checkbox;
-
-            list.Items.Add(new Border
-            {
-                Child = checkbox,
-                Tag = choice,
-                BorderBrush = WpfBrushes.Gainsboro,
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                Padding = new Thickness(4)
-            });
-        }
-
-        var summary = new TextBlock
-        {
-            Text = $"Tìm thấy {choices.Count} ứng dụng/game mới. Tick những mục muốn thêm.",
-            Foreground = WpfBrushes.Black,
-            FontWeight = FontWeights.SemiBold
-        };
-
-        var sourceFilter = new System.Windows.Controls.ComboBox { MinWidth = 170, Margin = new Thickness(0, 0, 8, 0) };
-        sourceFilter.Items.Add("Tất cả nguồn");
-        foreach (var source in choices.Select(choice => choice.Candidate.Source).Distinct().OrderBy(source => source))
-        {
-            sourceFilter.Items.Add(source);
-        }
-        sourceFilter.SelectedIndex = 0;
-
-        var driveFilter = new System.Windows.Controls.ComboBox { MinWidth = 110, Margin = new Thickness(0, 0, 8, 0) };
-        driveFilter.Items.Add("Tất cả ổ");
-        foreach (var drive in choices.Select(choice => choice.Candidate.Drive).Where(drive => drive.Length > 0).Distinct().OrderBy(drive => drive))
-        {
-            driveFilter.Items.Add(drive);
-        }
-        driveFilter.SelectedIndex = 0;
-
-        var searchBox = new System.Windows.Controls.TextBox
-        {
-            MinWidth = 220,
-            Margin = new Thickness(0, 0, 8, 0),
-            VerticalContentAlignment = VerticalAlignment.Center,
-            ToolTip = "Tìm trong kết quả scan"
-        };
-
-        void ApplyFilters()
-        {
-            var selectedSource = sourceFilter.SelectedItem?.ToString();
-            var selectedDrive = driveFilter.SelectedItem?.ToString();
-            var search = searchBox.Text.Trim();
-            foreach (Border item in list.Items)
-            {
-                if (item.Tag is not ScanCandidateChoice choice) continue;
-                var sourceMatches = selectedSource == "Tất cả nguồn" || choice.Candidate.Source == selectedSource;
-                var driveMatches = selectedDrive == "Tất cả ổ" || choice.Candidate.Drive == selectedDrive;
-                var searchMatches = search.Length == 0 ||
-                                    choice.Candidate.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                                    choice.Candidate.ExecutablePath.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                                    choice.Candidate.Category.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                                    choice.Candidate.Source.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                                    choice.Candidate.Drive.Contains(search, StringComparison.CurrentCultureIgnoreCase);
-                item.Visibility = sourceMatches && driveMatches && searchMatches ? Visibility.Visible : Visibility.Collapsed;
-            }
-        }
-
-        sourceFilter.SelectionChanged += (_, _) => ApplyFilters();
-        driveFilter.SelectionChanged += (_, _) => ApplyFilters();
-        searchBox.TextChanged += (_, _) => ApplyFilters();
-
-        var selectAllButton = new Button { Content = "Chọn tất cả", MinWidth = 96, Margin = new Thickness(0, 0, 8, 0) };
-        selectAllButton.Click += (_, _) =>
-        {
-            foreach (var choice in choices)
-            {
-                if (choice.CheckBox is not null) choice.CheckBox.IsChecked = true;
-            }
-        };
-
-        var clearButton = new Button { Content = "Bỏ chọn", MinWidth = 84, Margin = new Thickness(0, 0, 8, 0) };
-        clearButton.Click += (_, _) =>
-        {
-            foreach (var choice in choices)
-            {
-                if (choice.CheckBox is not null) choice.CheckBox.IsChecked = false;
-            }
-        };
-
-        var addButton = new Button { Content = "Thêm đã chọn", MinWidth = 112, Margin = new Thickness(0, 0, 8, 0), IsDefault = true };
-        var rescanButton = new Button { Content = "Scan lại", MinWidth = 82, Margin = new Thickness(0, 0, 8, 0) };
-        var cancelButton = new Button { Content = "Hủy", MinWidth = 72, IsCancel = true };
-
-        var buttons = new StackPanel
-        {
-            Orientation = WpfOrientation.Horizontal,
-            HorizontalAlignment = WpfHorizontalAlignment.Right
-        };
-        buttons.Children.Add(sourceFilter);
-        buttons.Children.Add(driveFilter);
-        buttons.Children.Add(searchBox);
-        buttons.Children.Add(selectAllButton);
-        buttons.Children.Add(clearButton);
-        buttons.Children.Add(addButton);
-        buttons.Children.Add(rescanButton);
-        buttons.Children.Add(cancelButton);
-
-        var root = new DockPanel { Margin = new Thickness(18) };
-        DockPanel.SetDock(summary, Dock.Top);
-        DockPanel.SetDock(buttons, Dock.Bottom);
-        root.Children.Add(summary);
-        root.Children.Add(buttons);
-        root.Children.Add(list);
-
-        var dialog = new Window
-        {
-            Title = "Scan ứng dụng và game",
-            Width = 780,
-            Height = 560,
-            MinWidth = 620,
-            MinHeight = 420,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = Application.Current.MainWindow,
-            Content = root
-        };
-
-        var shouldRescan = false;
-        addButton.Click += (_, _) => dialog.DialogResult = true;
-        rescanButton.Click += (_, _) =>
-        {
-            shouldRescan = true;
-            dialog.DialogResult = false;
-        };
-
-        var accepted = dialog.ShowDialog() == true;
-        rescanRequested = shouldRescan;
-
-        return accepted
-            ? choices.Where(choice => choice.CheckBox?.IsChecked == true).Select(choice => choice.Candidate).ToList()
-            : [];
-    }
-
-    private static System.Windows.Controls.Image CreateScanIconImage(string iconPath)
-    {
-        var image = new System.Windows.Controls.Image
-        {
-            Width = 36,
-            Height = 36,
-            Stretch = Stretch.Uniform,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        var resolvedPath = ResolveIconPath(iconPath);
-        if (resolvedPath is not null)
-        {
-            image.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(resolvedPath));
-        }
-
-        return image;
-    }
 
     private static string? ResolveIconPath(string iconPath)
     {
@@ -678,6 +896,13 @@ public sealed partial class MainViewModel : ObservableObject
 
         var sourceRelative = Path.Combine(Directory.GetCurrentDirectory(), iconPath.Replace('/', Path.DirectorySeparatorChar));
         return File.Exists(sourceRelative) ? sourceRelative : null;
+    }
+
+    private static bool ShouldRepairIcon(string iconPath)
+    {
+        if (string.IsNullOrWhiteSpace(iconPath)) return true;
+        if (iconPath.Equals("Assets/Icons/apps.png", StringComparison.OrdinalIgnoreCase)) return true;
+        return ResolveIconPath(iconPath) is null;
     }
 
     private static IEnumerable<string> EnumerateShortcutLocations()
@@ -749,6 +974,93 @@ public sealed partial class MainViewModel : ObservableObject
                 }
             }
         }
+    }
+
+    private static IEnumerable<string> EnumerateRecentSoftwareEntries()
+    {
+        foreach (var path in EnumerateRecentRegistryInstallEntries())
+        {
+            yield return path;
+        }
+
+        var recentFolder = Environment.GetFolderPath(Environment.SpecialFolder.Recent);
+        if (Directory.Exists(recentFolder))
+        {
+            IEnumerable<string> recentShortcuts;
+            try
+            {
+                recentShortcuts = Directory.EnumerateFiles(recentFolder, "*.lnk", SearchOption.TopDirectoryOnly)
+                    .OrderByDescending(File.GetLastWriteTimeUtc)
+                    .Take(80);
+            }
+            catch
+            {
+                yield break;
+            }
+
+            foreach (var shortcut in recentShortcuts)
+            {
+                yield return shortcut;
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateRecentRegistryInstallEntries()
+    {
+        var uninstallKeys = new[]
+        {
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        };
+
+        var entries = new List<(DateTime Date, string Path)>();
+        foreach (var hive in new[] { Microsoft.Win32.Registry.CurrentUser, Microsoft.Win32.Registry.LocalMachine })
+        {
+            foreach (var keyPath in uninstallKeys)
+            {
+                using var root = hive.OpenSubKey(keyPath);
+                if (root is null) continue;
+
+                foreach (var subKeyName in root.GetSubKeyNames())
+                {
+                    using var appKey = root.OpenSubKey(subKeyName);
+                    if (appKey is null) continue;
+
+                    var displayName = appKey.GetValue("DisplayName")?.ToString();
+                    if (string.IsNullOrWhiteSpace(displayName)) continue;
+
+                    var installDate = ParseInstallDate(appKey.GetValue("InstallDate")?.ToString());
+                    if (installDate is null || installDate.Value < DateTime.Today.AddDays(-120)) continue;
+
+                    var displayIcon = CleanRegistryPath(appKey.GetValue("DisplayIcon")?.ToString());
+                    if (displayIcon is not null && IsUsableExecutable(displayIcon))
+                    {
+                        entries.Add((installDate.Value, displayIcon));
+                        continue;
+                    }
+
+                    var installLocation = CleanRegistryPath(appKey.GetValue("InstallLocation")?.ToString());
+                    var exe = FindPrimaryExecutable(installLocation, displayName);
+                    if (exe is not null)
+                    {
+                        entries.Add((installDate.Value, exe));
+                    }
+                }
+            }
+        }
+
+        foreach (var entry in entries.OrderByDescending(entry => entry.Date).Take(80))
+        {
+            yield return entry.Path;
+        }
+    }
+
+    private static DateTime? ParseInstallDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length != 8) return null;
+        return DateTime.TryParseExact(value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+            ? date
+            : null;
     }
 
     private static IEnumerable<string> EnumerateUserProfileApplications()
@@ -844,7 +1156,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private static void AddCandidate(IDictionary<string, ScanCandidate> candidates, string path)
+    private static void AddCandidate(IDictionary<string, ScanCandidate> candidates, string path, string? sourceOverride = null)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
         if (!path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) &&
@@ -866,7 +1178,7 @@ public sealed partial class MainViewModel : ObservableObject
             name,
             path,
             DetectCategory(name, path, target),
-            Source: DetectSource(path, target),
+            Source: sourceOverride ?? DetectSource(path, target),
             Drive: DetectDrive(path, target));
     }
 
@@ -966,7 +1278,7 @@ public sealed partial class MainViewModel : ObservableObject
             "hoyoplay", "garena", "xbox games", "game", "games"
         };
 
-        return gameTokens.Any(text.Contains) ? "KHO GAME" : "ỨNG DỤNG";
+        return gameTokens.Any(text.Contains) ? GameCategory : AppCategory;
     }
 
     private static string ResolveShortcutTarget(string path)
@@ -1011,6 +1323,15 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    private static bool LooksLikeShellCommand(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Scheme)) return true;
+        return !path.Contains(Path.DirectorySeparatorChar) &&
+               !path.Contains(Path.AltDirectorySeparatorChar) &&
+               path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string CleanDisplayName(string name)
     {
         return name
@@ -1025,20 +1346,19 @@ public sealed partial class MainViewModel : ObservableObject
         return new string(value.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
     }
 
-    private sealed record ScanCandidate(string Name, string ExecutablePath, string Category, string Source, string Drive, string IconPath = "");
+    private sealed record ScanOptions(
+        bool ScanStartMenuAndDesktop,
+        bool ScanUserProfile,
+        bool ScanRegistry,
+        bool ScanDrives,
+        bool ScanRecentSoftware,
+        string CustomPath);
 
-    private sealed record ScanOptions(bool ScanStartMenuAndDesktop, bool ScanUserProfile, bool ScanRegistry, bool ScanDrives);
-
-    private sealed class ScanCandidateChoice(ScanCandidate candidate)
-    {
-        public ScanCandidate Candidate { get; } = candidate;
-        public System.Windows.Controls.CheckBox? CheckBox { get; set; }
-    }
 
     [RelayCommand]
     private async Task RemoveLauncherAsync(LauncherItem item)
     {
-        if (MessageBox.Show($"Xóa {item.Name}?", "Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        if (!ShowThemedConfirmation("Xóa launcher", $"Xóa {item.Name}?"))
         {
             return;
         }
@@ -1058,7 +1378,35 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task ToggleCategoryAsync(LauncherItem item)
     {
-        item.Category = item.Category == "KHO GAME" ? "ỨNG DỤNG" : "KHO GAME";
+        item.Category = NormalizeCategory(item.Category) == GameCategory ? AppCategory : GameCategory;
+        await SaveAsync();
+        FilteredLaunchers.Refresh();
+    }
+
+    [RelayCommand]
+    private async Task EditLauncherAsync(LauncherItem? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        var edited = ShowEditLauncherDialog(item);
+        if (edited is null)
+        {
+            return;
+        }
+
+        var pathChanged = !string.Equals(item.ExecutablePath, edited.ExecutablePath, StringComparison.Ordinal);
+        item.Name = edited.Name;
+        item.ExecutablePath = edited.ExecutablePath;
+        item.Category = edited.Category;
+
+        if (pathChanged && ShouldRefreshLauncherIcon(item.IconPath))
+        {
+            item.IconPath = await _launcherService.GetIconPathAsync(item.ExecutablePath);
+        }
+
         await SaveAsync();
         FilteredLaunchers.Refresh();
     }
@@ -1080,6 +1428,364 @@ public sealed partial class MainViewModel : ObservableObject
         item.IconPath = dialog.FileName;
         await SaveAsync();
         FilteredLaunchers.Refresh();
+    }
+
+    private static bool ShowThemedConfirmation(string title, string message)
+    {
+        var palette = CreateDialogPalette();
+        var dialog = CreateBaseDialog(title, 430, 210, palette);
+        var root = CreateDialogRoot(palette);
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+        var text = new System.Windows.Controls.TextBlock
+        {
+            Text = message,
+            Foreground = palette.TextBrush,
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        root.Children.Add(text);
+
+        var buttons = new System.Windows.Controls.StackPanel
+        {
+            Orientation = WpfOrientation.Horizontal,
+            HorizontalAlignment = WpfHorizontalAlignment.Right
+        };
+        var noButton = CreateDialogButton("Hủy", palette, isPrimary: false);
+        var yesButton = CreateDialogButton("Xóa", palette, isPrimary: true);
+        noButton.IsCancel = true;
+        yesButton.IsDefault = true;
+        noButton.Margin = new Thickness(0, 0, 8, 0);
+        yesButton.Click += (_, _) => dialog.DialogResult = true;
+        buttons.Children.Add(noButton);
+        buttons.Children.Add(yesButton);
+
+        System.Windows.Controls.Grid.SetRow(buttons, 1);
+        root.Children.Add(buttons);
+        dialog.Content = root;
+
+        return dialog.ShowDialog() == true;
+    }
+
+    private static void ShowThemedMessage(string title, string message)
+    {
+        var palette = CreateDialogPalette();
+        var dialog = CreateBaseDialog(title, 500, 240, palette);
+        var root = CreateDialogRoot(palette);
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+        var text = new System.Windows.Controls.TextBlock
+        {
+            Text = message,
+            Foreground = palette.TextBrush,
+            FontSize = 14,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        root.Children.Add(text);
+
+        var okButton = CreateDialogButton("OK", palette, isPrimary: true);
+        okButton.Width = 86;
+        okButton.IsDefault = true;
+        okButton.Click += (_, _) => dialog.DialogResult = true;
+        System.Windows.Controls.Grid.SetRow(okButton, 1);
+        okButton.HorizontalAlignment = WpfHorizontalAlignment.Right;
+        root.Children.Add(okButton);
+
+        dialog.Content = root;
+        dialog.ShowDialog();
+    }
+
+    private static EditLauncherResult? ShowEditLauncherDialog(LauncherItem item)
+    {
+        var palette = CreateDialogPalette();
+        var backgroundBrush = palette.BackgroundBrush;
+        var panelBrush = palette.PanelBrush;
+        var textBrush = palette.TextBrush;
+        var borderBrush = palette.BorderBrush;
+        var accentBrush = palette.AccentBrush;
+
+        var dialog = new Window
+        {
+            Title = "Sửa launcher",
+            Width = 560,
+            Height = 330,
+            WindowStartupLocation = Application.Current.MainWindow is { IsLoaded: true, IsVisible: true } ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
+            ResizeMode = ResizeMode.NoResize,
+            Owner = Application.Current.MainWindow is { IsLoaded: true, IsVisible: true } ? Application.Current.MainWindow : null,
+            Background = backgroundBrush
+        };
+
+        var root = new System.Windows.Controls.Grid
+        {
+            Margin = new Thickness(18),
+            Background = backgroundBrush
+        };
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+
+        var nameBox = new System.Windows.Controls.TextBox
+        {
+            Text = item.Name,
+            Margin = new Thickness(0, 6, 0, 14),
+            MinHeight = 34,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Background = panelBrush,
+            Foreground = textBrush,
+            BorderBrush = borderBrush,
+            CaretBrush = textBrush
+        };
+
+        var pathBox = new System.Windows.Controls.TextBox
+        {
+            Text = item.ExecutablePath,
+            MinHeight = 34,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Background = panelBrush,
+            Foreground = textBrush,
+            BorderBrush = borderBrush,
+            CaretBrush = textBrush
+        };
+
+        var browseFileButton = new System.Windows.Controls.Button
+        {
+            Content = "Chọn file",
+            Width = 92,
+            Margin = new Thickness(8, 0, 0, 0),
+            Background = panelBrush,
+            Foreground = textBrush,
+            BorderBrush = borderBrush
+        };
+
+        var browseFolderButton = new System.Windows.Controls.Button
+        {
+            Content = "Chọn folder",
+            Width = 104,
+            Margin = new Thickness(8, 0, 0, 0),
+            Background = panelBrush,
+            Foreground = textBrush,
+            BorderBrush = borderBrush
+        };
+
+        var pathRow = new System.Windows.Controls.Grid { Margin = new Thickness(0, 6, 0, 14) };
+        pathRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+        pathRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = System.Windows.GridLength.Auto });
+        pathRow.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = System.Windows.GridLength.Auto });
+        pathRow.Children.Add(pathBox);
+        System.Windows.Controls.Grid.SetColumn(browseFileButton, 1);
+        System.Windows.Controls.Grid.SetColumn(browseFolderButton, 2);
+        pathRow.Children.Add(browseFileButton);
+        pathRow.Children.Add(browseFolderButton);
+
+        var categoryBox = new System.Windows.Controls.ComboBox
+        {
+            ItemsSource = new[] { GameCategory, AppCategory },
+            SelectedItem = NormalizeCategory(item.Category),
+            MinHeight = 34,
+            Margin = new Thickness(0, 6, 0, 14),
+            Background = panelBrush,
+            Foreground = textBrush,
+            BorderBrush = borderBrush
+        };
+        if (categoryBox.SelectedItem is null)
+        {
+            categoryBox.SelectedIndex = 1;
+        }
+
+        var statusText = new System.Windows.Controls.TextBlock
+        {
+            Foreground = WpfBrushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 2, 0, 0)
+        };
+
+        var buttons = new System.Windows.Controls.StackPanel
+        {
+            Orientation = WpfOrientation.Horizontal,
+            HorizontalAlignment = WpfHorizontalAlignment.Right
+        };
+        var cancelButton = new System.Windows.Controls.Button
+        {
+            Content = "Hủy",
+            Width = 86,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsCancel = true,
+            Background = panelBrush,
+            Foreground = textBrush,
+            BorderBrush = borderBrush
+        };
+        var saveButton = new System.Windows.Controls.Button
+        {
+            Content = "Lưu",
+            Width = 86,
+            IsDefault = true,
+            Background = accentBrush,
+            Foreground = WpfBrushes.White,
+            BorderBrush = accentBrush
+        };
+        buttons.Children.Add(cancelButton);
+        buttons.Children.Add(saveButton);
+
+        browseFileButton.Click += (_, _) =>
+        {
+            var fileDialog = new OpenFileDialog
+            {
+                Title = "Chọn shortcut hoặc file chạy",
+                Filter = "Shortcut/Executable (*.lnk;*.exe)|*.lnk;*.exe|All files (*.*)|*.*"
+            };
+
+            if (fileDialog.ShowDialog(dialog) == true)
+            {
+                pathBox.Text = fileDialog.FileName;
+                if (string.IsNullOrWhiteSpace(nameBox.Text))
+                {
+                    nameBox.Text = Path.GetFileNameWithoutExtension(fileDialog.FileName);
+                }
+            }
+        };
+
+        browseFolderButton.Click += (_, _) =>
+        {
+            using var folderDialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Chọn thư mục cho launcher",
+                UseDescriptionForTitle = true
+            };
+
+            if (folderDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                pathBox.Text = folderDialog.SelectedPath;
+                if (string.IsNullOrWhiteSpace(nameBox.Text))
+                {
+                    nameBox.Text = Path.GetFileName(folderDialog.SelectedPath);
+                }
+            }
+        };
+
+        saveButton.Click += (_, _) =>
+        {
+            var editedName = nameBox.Text.Trim();
+            var editedPath = pathBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(editedName))
+            {
+                statusText.Text = "Tên launcher không được để trống.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(editedPath))
+            {
+                statusText.Text = "Đường dẫn không được để trống.";
+                return;
+            }
+
+            dialog.DialogResult = true;
+        };
+
+        AddLabeledControl(root, "Tên", nameBox, 0, textBrush);
+        AddLabeledControl(root, "Đường dẫn", pathRow, 1, textBrush);
+        AddLabeledControl(root, "Loại", categoryBox, 2, textBrush);
+        System.Windows.Controls.Grid.SetRow(statusText, 3);
+        root.Children.Add(statusText);
+        System.Windows.Controls.Grid.SetRow(buttons, 4);
+        root.Children.Add(buttons);
+
+        dialog.Content = root;
+
+        return dialog.ShowDialog() == true
+            ? new EditLauncherResult(nameBox.Text.Trim(), pathBox.Text.Trim(), NormalizeCategory(categoryBox.SelectedItem?.ToString()))
+            : null;
+    }
+
+    private static void AddLabeledControl(
+        System.Windows.Controls.Grid root,
+        string label,
+        UIElement control,
+        int row,
+        System.Windows.Media.Brush textBrush)
+    {
+        var panel = new System.Windows.Controls.StackPanel();
+        panel.Children.Add(new System.Windows.Controls.TextBlock
+        {
+            Text = label,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = textBrush
+        });
+        panel.Children.Add(control);
+        System.Windows.Controls.Grid.SetRow(panel, row);
+        root.Children.Add(panel);
+    }
+
+    private static bool ShouldRefreshLauncherIcon(string iconPath)
+    {
+        return string.IsNullOrWhiteSpace(iconPath) ||
+               iconPath.Equals(AppPaths.DefaultIconPath, StringComparison.OrdinalIgnoreCase) ||
+               !File.Exists(iconPath);
+    }
+
+    private static DialogPalette CreateDialogPalette()
+    {
+        var isLightTheme = (Application.Current.MainWindow?.DataContext as MainViewModel)?.IsLightTheme == true;
+        return new DialogPalette(
+            new System.Windows.Media.SolidColorBrush(isLightTheme
+                ? System.Windows.Media.Color.FromRgb(248, 250, 252)
+                : System.Windows.Media.Color.FromRgb(15, 15, 22)),
+            new System.Windows.Media.SolidColorBrush(isLightTheme
+                ? System.Windows.Media.Color.FromRgb(255, 255, 255)
+                : System.Windows.Media.Color.FromRgb(24, 24, 34)),
+            new System.Windows.Media.SolidColorBrush(isLightTheme
+                ? System.Windows.Media.Color.FromRgb(17, 24, 39)
+                : System.Windows.Media.Color.FromRgb(229, 231, 235)),
+            new System.Windows.Media.SolidColorBrush(isLightTheme
+                ? System.Windows.Media.Color.FromRgb(203, 213, 225)
+                : System.Windows.Media.Color.FromRgb(55, 65, 81)),
+            new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)));
+    }
+
+    private static Window CreateBaseDialog(string title, double width, double height, DialogPalette palette)
+    {
+        var mainWin = Application.Current.MainWindow;
+        var hasValidOwner = mainWin is { IsLoaded: true, IsVisible: true };
+
+        return new Window
+        {
+            Title = title,
+            Width = width,
+            Height = height,
+            WindowStartupLocation = hasValidOwner ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
+            ResizeMode = ResizeMode.NoResize,
+            Owner = hasValidOwner ? mainWin : null,
+            Background = palette.BackgroundBrush
+        };
+    }
+
+    private static System.Windows.Controls.Grid CreateDialogRoot(DialogPalette palette)
+    {
+        return new System.Windows.Controls.Grid
+        {
+            Margin = new Thickness(18),
+            Background = palette.BackgroundBrush
+        };
+    }
+
+    private static System.Windows.Controls.Button CreateDialogButton(string content, DialogPalette palette, bool isPrimary)
+    {
+        var brush = isPrimary ? palette.AccentBrush : palette.PanelBrush;
+        return new System.Windows.Controls.Button
+        {
+            Content = content,
+            Width = 86,
+            MinHeight = 34,
+            Background = brush,
+            Foreground = isPrimary ? WpfBrushes.White : palette.TextBrush,
+            BorderBrush = isPrimary ? palette.AccentBrush : palette.BorderBrush
+        };
     }
 
     public void Reorder(LauncherItem source, LauncherItem target)
@@ -1114,7 +1820,57 @@ public sealed partial class MainViewModel : ObservableObject
         {
             Launchers = Launchers.ToList(),
             DefaultTab = ActiveTab,
-            IsLightTheme = IsLightTheme
+            IsLightTheme = IsLightTheme,
+            OpenFullscreenOnStartup = OpenFullscreenOnStartup,
+            MinimizeAfterLaunch = MinimizeAfterLaunch
         });
     }
+}
+
+internal sealed record EditLauncherResult(string Name, string ExecutablePath, string Category);
+
+internal sealed record DialogPalette(
+    System.Windows.Media.Brush BackgroundBrush,
+    System.Windows.Media.Brush PanelBrush,
+    System.Windows.Media.Brush TextBrush,
+    System.Windows.Media.Brush BorderBrush,
+    System.Windows.Media.Brush AccentBrush);
+
+public sealed record ScanCandidate(string Name, string ExecutablePath, string Category, string Source, string Drive, string IconPath = "");
+
+public sealed partial class ScanResultItem(ScanCandidate candidate) : ObservableObject
+{
+    internal ScanCandidate Candidate { get; } = candidate;
+
+    [ObservableProperty]
+    private bool _isSelected;
+
+    [ObservableProperty]
+    private string _iconPath = string.IsNullOrWhiteSpace(candidate.IconPath)
+        ? AppPaths.DefaultIconPath
+        : candidate.IconPath;
+
+    public string Name => Candidate.Name;
+    public string ExecutablePath => Candidate.ExecutablePath;
+    public string Category => Candidate.Category;
+    public string Source => Candidate.Source;
+    public string Drive => Candidate.Drive;
+}
+
+internal sealed class GitHubRelease
+{
+    [JsonPropertyName("tag_name")]
+    public string TagName { get; set; } = string.Empty;
+
+    [JsonPropertyName("assets")]
+    public List<GitHubReleaseAsset> Assets { get; set; } = [];
+}
+
+internal sealed class GitHubReleaseAsset
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("browser_download_url")]
+    public string DownloadUrl { get; set; } = string.Empty;
 }
