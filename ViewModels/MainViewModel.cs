@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Launcher.Models;
@@ -116,7 +116,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
     public string[] Tabs { get; } = [FavoriteTab, GameCategory, AppCategory];
     public bool IsLauncherTab => !IsSettingsPage;
-    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.0.0"}";
+    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.0.1"}";
 
     public MainViewModel(ISettingsService settingsService, ILauncherService launcherService, IStartupService startupService)
     {
