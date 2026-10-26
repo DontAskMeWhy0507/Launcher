@@ -1,4 +1,4 @@
-<Window x:Class="Launcher.MainWindow"
+﻿<Window x:Class="Launcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:Launcher.Converters"
@@ -179,7 +179,7 @@
             </Setter>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="0" Opacity="0.18"/>
+                    <DropShadowEffect Color="#000000" BlurRadius="12" ShadowDepth="0" Opacity="0.18" RenderingBias="Performance"/>
                 </Setter.Value>
             </Setter>
             <Setter Property="Template">
@@ -402,11 +402,6 @@
                                                                 <CubicEase EasingMode="EaseOut"/>
                                                             </DoubleAnimation.EasingFunction>
                                                         </DoubleAnimation>
-                                                        <DoubleAnimation Storyboard.TargetName="IconBlur" Storyboard.TargetProperty="Radius" To="4" Duration="{StaticResource CardHoverDuration}">
-                                                            <DoubleAnimation.EasingFunction>
-                                                                <CubicEase EasingMode="EaseOut"/>
-                                                            </DoubleAnimation.EasingFunction>
-                                                        </DoubleAnimation>
                                                         <DoubleAnimation Storyboard.TargetName="IconDimmer" Storyboard.TargetProperty="Opacity" To="0.7" Duration="{StaticResource CardHoverDuration}"/>
                                                         <DoubleAnimation Storyboard.TargetName="PlayGlyph" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource CardHoverDuration}"/>
                                                         <DoubleAnimation Storyboard.TargetName="PlayGlyph" Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleX)" To="1.06" Duration="{StaticResource CardHoverDuration}">
@@ -431,11 +426,6 @@
                                                             </DoubleAnimation.EasingFunction>
                                                         </DoubleAnimation>
                                                         <DoubleAnimation Storyboard.TargetName="LauncherIcon" Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleY)" To="1" Duration="{StaticResource CardHoverDuration}">
-                                                            <DoubleAnimation.EasingFunction>
-                                                                <CubicEase EasingMode="EaseOut"/>
-                                                            </DoubleAnimation.EasingFunction>
-                                                        </DoubleAnimation>
-                                                        <DoubleAnimation Storyboard.TargetName="IconBlur" Storyboard.TargetProperty="Radius" To="0" Duration="{StaticResource CardHoverDuration}">
                                                             <DoubleAnimation.EasingFunction>
                                                                 <CubicEase EasingMode="EaseOut"/>
                                                             </DoubleAnimation.EasingFunction>
@@ -468,11 +458,6 @@
                                                                 <CubicEase EasingMode="EaseOut"/>
                                                             </DoubleAnimation.EasingFunction>
                                                         </DoubleAnimation>
-                                                        <DoubleAnimation Storyboard.TargetName="IconBlur" Storyboard.TargetProperty="Radius" To="4" Duration="{StaticResource CardHoverDuration}">
-                                                            <DoubleAnimation.EasingFunction>
-                                                                <CubicEase EasingMode="EaseOut"/>
-                                                            </DoubleAnimation.EasingFunction>
-                                                        </DoubleAnimation>
                                                         <DoubleAnimation Storyboard.TargetName="IconDimmer" Storyboard.TargetProperty="Opacity" To="0.7" Duration="{StaticResource CardHoverDuration}"/>
                                                         <DoubleAnimation Storyboard.TargetName="PlayGlyph" Storyboard.TargetProperty="Opacity" To="1" Duration="{StaticResource CardHoverDuration}"/>
                                                         <DoubleAnimation Storyboard.TargetName="PlayGlyph" Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleX)" To="1.06" Duration="{StaticResource CardHoverDuration}">
@@ -497,11 +482,6 @@
                                                             </DoubleAnimation.EasingFunction>
                                                         </DoubleAnimation>
                                                         <DoubleAnimation Storyboard.TargetName="LauncherIcon" Storyboard.TargetProperty="RenderTransform.(ScaleTransform.ScaleY)" To="1" Duration="{StaticResource CardHoverDuration}">
-                                                            <DoubleAnimation.EasingFunction>
-                                                                <CubicEase EasingMode="EaseOut"/>
-                                                            </DoubleAnimation.EasingFunction>
-                                                        </DoubleAnimation>
-                                                        <DoubleAnimation Storyboard.TargetName="IconBlur" Storyboard.TargetProperty="Radius" To="0" Duration="{StaticResource CardHoverDuration}">
                                                             <DoubleAnimation.EasingFunction>
                                                                 <CubicEase EasingMode="EaseOut"/>
                                                             </DoubleAnimation.EasingFunction>
@@ -561,9 +541,6 @@
                                                         <Image.RenderTransform>
                                                             <ScaleTransform ScaleX="1" ScaleY="1"/>
                                                         </Image.RenderTransform>
-                                                        <Image.Effect>
-                                                            <BlurEffect x:Name="IconBlur" Radius="0" KernelType="Gaussian"/>
-                                                        </Image.Effect>
                                                     </Image>
                                                     <Border x:Name="IconDimmer"
                                                             Background="#000000"

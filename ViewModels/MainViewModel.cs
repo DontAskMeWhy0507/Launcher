@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Launcher.Models;
@@ -37,6 +37,9 @@ public sealed partial class MainViewModel : ObservableObject
     private const string GameCategory = "KHO GAME";
     private const string AppCategory = "ỨNG DỤNG";
     private const string LatestReleaseApiUrl = "https://api.github.com/repos/DontAskMeWhy0507/Launcher/releases/latest";
+    private const string LatestReleaseWebUrl = "https://github.com/DontAskMeWhy0507/Launcher/releases/latest";
+
+    private CancellationTokenSource? _saveDebounceCts;
 
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -225,8 +228,8 @@ public sealed partial class MainViewModel : ObservableObject
         var matchesTab = ActiveTab switch
         {
             FavoriteTab => item.IsFavorite,
-            GameCategory => NormalizeCategory(item.Category) == GameCategory,
-            _ => NormalizeCategory(item.Category) == AppCategory
+            GameCategory => string.Equals(item.Category, GameCategory, StringComparison.OrdinalIgnoreCase),
+            _ => string.Equals(item.Category, AppCategory, StringComparison.OrdinalIgnoreCase)
         };
 
         return matchesTab && (string.IsNullOrWhiteSpace(SearchText)
@@ -297,7 +300,21 @@ public sealed partial class MainViewModel : ObservableObject
         FilteredLaunchers.Refresh();
         if (!_isInitializing)
         {
-            _ = SaveAsync();
+            _saveDebounceCts?.Cancel();
+            _saveDebounceCts = new CancellationTokenSource();
+            var token = _saveDebounceCts.Token;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(1500, token);
+                    if (!token.IsCancellationRequested)
+                    {
+                        await SaveAsync();
+                    }
+                }
+                catch (OperationCanceledException) { }
+            }, token);
         }
     }
 
@@ -644,11 +661,66 @@ public sealed partial class MainViewModel : ObservableObject
 
     private static async Task<GitHubRelease?> GetLatestReleaseAsync()
     {
-        using var httpClient = CreateGitHubHttpClient();
-        return await httpClient.GetFromJsonAsync<GitHubRelease>(LatestReleaseApiUrl);
+        try
+        {
+            using var httpClient = CreateGitHubHttpClient();
+            var release = await httpClient.GetFromJsonAsync<GitHubRelease>(LatestReleaseApiUrl);
+            if (release is not null && !string.IsNullOrWhiteSpace(release.TagName))
+            {
+                return release;
+            }
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden || ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            // GitHub REST API rate-limited (403/429) -> seamlessly fallback to GitHub Web redirect
+        }
+        catch (Exception)
+        {
+            // Network or parsing error on API -> attempt fallback
+        }
+
+        return await GetLatestReleaseFromWebRedirectAsync();
     }
 
-    private static HttpClient CreateGitHubHttpClient()
+    private static async Task<GitHubRelease?> GetLatestReleaseFromWebRedirectAsync()
+    {
+        try
+        {
+            using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+            using var httpClient = new HttpClient(handler);
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Launcher-Updater");
+
+            using var response = await httpClient.GetAsync(LatestReleaseWebUrl);
+            if (response.Headers.Location is not null)
+            {
+                var segments = response.Headers.Location.AbsolutePath.TrimEnd('/').Split('/');
+                var tagName = segments.LastOrDefault();
+                if (!string.IsNullOrWhiteSpace(tagName))
+                {
+                    return new GitHubRelease
+                    {
+                        TagName = tagName,
+                        Assets =
+                        [
+                            new GitHubReleaseAsset
+                            {
+                                Name = "LauncherSetup.exe",
+                                DownloadUrl = $"https://github.com/DontAskMeWhy0507/Launcher/releases/download/{tagName}/LauncherSetup.exe"
+                            }
+                        ]
+                    };
+                }
+            }
+        }
+        catch
+        {
+            // Ignore web fallback errors
+        }
+
+        return null;
+    }
+
+        private static HttpClient CreateGitHubHttpClient()
     {
         var httpClient = new HttpClient();
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Launcher-Updater");
