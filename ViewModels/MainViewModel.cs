@@ -116,7 +116,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
     public string[] Tabs { get; } = [FavoriteTab, GameCategory, AppCategory];
     public bool IsLauncherTab => !IsSettingsPage;
-    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.0.1"}";
+    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.1.0"}";
 
     public MainViewModel(ISettingsService settingsService, ILauncherService launcherService, IStartupService startupService)
     {
@@ -563,6 +563,36 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task CleanMissingLaunchersAsync()
+    {
+        var invalidItems = Launchers.Where(item => !_launcherService.IsValid(item)).ToList();
+
+        if (invalidItems.Count == 0)
+        {
+            UserDialog.ShowMessage("Kiểm tra ứng dụng", "Tất cả ứng dụng và game trong Launcher đều hợp lệ. Không tìm thấy mục nào bị gỡ hoặc mất đường dẫn.");
+            return;
+        }
+
+        var sampleList = string.Join("\n", invalidItems.Take(8).Select(x => $"• {x.Name} ({x.ExecutablePath})"));
+        var extraCount = invalidItems.Count > 8 ? $"\n... và {invalidItems.Count - 8} mục khác." : "";
+        var message = $"Tìm thấy {invalidItems.Count} ứng dụng không còn tồn tại trên máy:\n\n{sampleList}{extraCount}\n\nBạn có muốn xoá các mục này khỏi Launcher không?";
+
+        if (!UserDialog.ShowConfirmation("Dọn dẹp ứng dụng đã gỡ", message))
+        {
+            return;
+        }
+
+        foreach (var item in invalidItems)
+        {
+            Launchers.Remove(item);
+        }
+
+        FilteredLaunchers.Refresh();
+        await SaveAsync();
+
+        UserDialog.ShowMessage("Hoàn tất", $"Đã xoá thành công {invalidItems.Count} ứng dụng không còn tồn tại khỏi Launcher.");
+    }
     [RelayCommand]
     private async Task CheckForUpdateAsync()
     {

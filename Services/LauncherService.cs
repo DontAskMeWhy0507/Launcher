@@ -86,6 +86,57 @@ public sealed class LauncherService : ILauncherService
         return Task.CompletedTask;
     }
 
+    public bool IsValid(LauncherItem item)
+    {
+        if (string.IsNullOrWhiteSpace(item.ExecutablePath)) return false;
+
+        var path = item.ExecutablePath.Trim();
+
+        // Check well-known shell commands or URI protocols (steam://, epic://, calc.exe, explorer.exe, etc.)
+        if (LooksLikeShellCommand(path))
+        {
+            return true;
+        }
+
+        // Expand environment variables
+        var expanded = Environment.ExpandEnvironmentVariables(path);
+
+        // Check direct file or folder existence
+        if (File.Exists(expanded) || Directory.Exists(expanded))
+        {
+            // If shortcut (.lnk), check if destination target still exists
+            if (path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            {
+                var target = ResolveShortcut(expanded);
+                if (!string.IsNullOrWhiteSpace(target.FileName))
+                {
+                    var expandedTarget = Environment.ExpandEnvironmentVariables(target.FileName);
+                    if (!File.Exists(expandedTarget) && !Directory.Exists(expandedTarget) && !LooksLikeShellCommand(target.FileName))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Check quoted paths
+        if (path.StartsWith("\""))
+        {
+            var closingQuote = path.IndexOf('\"', 1);
+            if (closingQuote > 1)
+            {
+                var rawPath = Environment.ExpandEnvironmentVariables(path.Substring(1, closingQuote - 1));
+                if (File.Exists(rawPath) || Directory.Exists(rawPath))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public Task<string> GetIconPathAsync(string filePath)
     {
         return Task.Run(() =>

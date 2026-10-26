@@ -43,6 +43,16 @@ public sealed class ThemeBrushConverter : IValueConverter, IMultiValueConverter
                 "PlayIcon" => light ? "#111827" : "#111827",
                 "Fab" => light ? "#111827" : "#F5F5F7",
                 "FabIcon" => light ? "#FFFFFF" : "#111111",
+                "SectionHeader" => light ? "#374151" : "#9CA3AF",
+                "SettingCard" => light ? "#FFFFFF" : "#12121A",
+                "SettingCardBorder" => light ? "#E5E7EB" : "#242433",
+                "ButtonPrimary" => light ? "#2563EB" : "#3B82F6",
+                "ButtonSecondary" => light ? "#F3F4F6" : "#1A1A24",
+                "ButtonSecondaryBorder" => light ? "#D1D5DB" : "#2E2E3F",
+                "ButtonSecondaryText" => light ? "#1F2937" : "#E5E7EB",
+                "CleanButtonBg" => light ? "#FEF2F2" : "#1C1318",
+                "CleanButtonBorder" => light ? "#FECACA" : "#381E28",
+                "CleanButtonText" => light ? "#DC2626" : "#F87171",
                 _ => light ? "#FFFFFF" : "#000000"
             };
 

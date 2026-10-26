@@ -8,6 +8,11 @@ internal static class UserDialog
 
     public static void ShowError(string message) => Show("Launcher error", message, "OK", null);
 
+    public static void ShowMessage(string title, string message) => Show(title, message, "OK", null);
+
+    public static bool ShowConfirmation(string title, string message, string primaryText = "Đồng ý", string secondaryText = "Hủy") 
+        => Show(title, message, primaryText, secondaryText);
+
     private static bool Show(string title, string message, string primaryText, string? secondaryText)
     {
         if (Application.Current is null)
@@ -27,8 +32,10 @@ internal static class UserDialog
         var dialog = new Window
         {
             Title = title,
-            Width = 500,
-            Height = 240,
+            Width = 520,
+            MinHeight = 200,
+            MaxHeight = 560,
+            SizeToContent = SizeToContent.Height,
             WindowStartupLocation = hasValidOwner ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
             ResizeMode = ResizeMode.NoResize,
             Owner = hasValidOwner ? mainWin : null,
@@ -37,20 +44,30 @@ internal static class UserDialog
 
         var root = new Grid
         {
-            Margin = new Thickness(18),
+            Margin = new Thickness(20),
             Background = palette.BackgroundBrush
         };
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        root.Children.Add(new TextBlock
+        var scroll = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = 380,
+            Margin = new Thickness(0, 0, 0, 16)
+        };
+
+        scroll.Content = new TextBlock
         {
             Text = message,
             Foreground = palette.TextBrush,
-            FontSize = 14,
+            FontSize = 13.5,
+            LineHeight = 20,
             TextWrapping = TextWrapping.Wrap,
             VerticalAlignment = VerticalAlignment.Center
-        });
+        };
+
+        root.Children.Add(scroll);
 
         var buttons = new StackPanel
         {
