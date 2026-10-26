@@ -495,7 +495,8 @@
 
             <Border Grid.Row="2" Margin="18,0,18,20" CornerRadius="12" Background="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=ListPanel}" BorderBrush="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=ListBorder}" BorderThickness="1"
                     Visibility="{Binding IsLauncherTab, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16" PanningMode="VerticalOnly">
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16" PanningMode="VerticalOnly">
                     <ItemsControl x:Name="LaunchersList" ItemsSource="{Binding FilteredLaunchers}" 
                                   AllowDrop="True" Drop="OnLauncherDrop"
                                   KeyboardNavigation.DirectionalNavigation="Continue"
@@ -716,6 +717,15 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
+
+                    <TextBlock Text="Chưa có ứng dụng yêu thích nào."
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"
+                               Visibility="{Binding IsFavoriteTabEmpty, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </Grid>
             </Border>
 
                         <Border Grid.Row="1"

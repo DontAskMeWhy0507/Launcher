@@ -1,7 +1,7 @@
 [Setup]
 AppId={{A1A5B86E-0F7D-4B56-8F3F-2F60E8F28B7A}
 AppName=Launcher
-AppVersion=4.1.1
+AppVersion=4.1.2
 AppPublisher=Launcher
 DefaultDirName={autopf}\Launcher
 DefaultGroupName=Launcher

@@ -113,10 +113,14 @@ public sealed partial class MainViewModel : ObservableObject
     {
         FilteredLaunchers = CollectionViewSource.GetDefaultView(value);
         FilteredLaunchers.Filter = FilterLauncher;
+        value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsFavoriteTabEmpty));
+        OnPropertyChanged(nameof(IsFavoriteTabEmpty));
     }
     public string[] Tabs { get; } = [FavoriteTab, GameCategory, AppCategory];
     public bool IsLauncherTab => !IsSettingsPage;
-    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.1.1"}";
+    public bool IsFavoriteTab => string.Equals(ActiveTab, FavoriteTab, StringComparison.OrdinalIgnoreCase);
+    public bool IsFavoriteTabEmpty => IsLauncherTab && IsFavoriteTab && !Launchers.Any(x => x.IsFavorite);
+    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.1.2"}";
 
     public MainViewModel(ISettingsService settingsService, ILauncherService launcherService, IStartupService startupService)
     {
@@ -137,14 +141,14 @@ public sealed partial class MainViewModel : ObservableObject
         if (_isLoaded) return;
         var settings = await _settingsService.LoadAsync();
         var normalizedDefaultTab = NormalizeTab(settings.DefaultTab);
-        var shouldSaveNormalizedSettings = !string.Equals(settings.DefaultTab, normalizedDefaultTab, StringComparison.Ordinal);
+        var shouldSaveNormalizedSettings = !string.Equals(settings.DefaultTab, FavoriteTab, StringComparison.Ordinal);
 
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
             IsLightTheme = settings.IsLightTheme;
             OpenFullscreenOnStartup = settings.OpenFullscreenOnStartup;
             MinimizeAfterLaunch = settings.MinimizeAfterLaunch;
-            ActiveTab = normalizedDefaultTab;
+            ActiveTab = FavoriteTab;
             var newLaunchers = new ObservableCollection<LauncherItem>();
             foreach (var item in settings.Launchers.OrderBy(x => x.Order))
             {
@@ -302,6 +306,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         IsSettingsPage = false;
         FilteredLaunchers.Refresh();
+        OnPropertyChanged(nameof(IsFavoriteTab));
+        OnPropertyChanged(nameof(IsFavoriteTabEmpty));
         if (!_isInitializing)
         {
             _saveDebounceCts?.Cancel();
@@ -322,7 +328,11 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    partial void OnIsSettingsPageChanged(bool value) => OnPropertyChanged(nameof(IsLauncherTab));
+    partial void OnIsSettingsPageChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsLauncherTab));
+        OnPropertyChanged(nameof(IsFavoriteTabEmpty));
+    }
 
     partial void OnStartWithWindowsChanged(bool value)
     {
@@ -1479,6 +1489,7 @@ public sealed partial class MainViewModel : ObservableObject
         item.IsFavorite = !item.IsFavorite;
         await SaveAsync();
         FilteredLaunchers.Refresh();
+        OnPropertyChanged(nameof(IsFavoriteTabEmpty));
     }
 
     [RelayCommand]

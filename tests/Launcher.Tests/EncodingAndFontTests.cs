@@ -106,6 +106,7 @@ public class EncodingAndFontTests
         Assert.Contains("Text=\"Cập nhật Launcher\"", content);
         Assert.Contains("Text=\"KIỂM TRA\"", content);
         Assert.Contains("Text=\"UPDATE\"", content);
+        Assert.Contains("Text=\"Chưa có ứng dụng yêu thích nào.\"", content);
     }
 
     private static string GetProjectRootDir()
