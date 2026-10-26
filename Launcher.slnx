@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/Launcher.Tests/Launcher.Tests.csproj" />
+  </Folder>
+  <Project Path="Launcher.csproj" />
+</Solution>

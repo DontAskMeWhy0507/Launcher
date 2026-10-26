@@ -33,9 +33,9 @@ public sealed partial class MainViewModel : ObservableObject
     private CancellationTokenSource? _scanCts;
     private GitHubReleaseAsset? _pendingUpdateInstaller;
     private string _pendingUpdateVersion = string.Empty;
-    private const string FavoriteTab = "YÊU THÍCH";
-    private const string GameCategory = "KHO GAME";
-    private const string AppCategory = "ỨNG DỤNG";
+    public const string FavoriteTab = "YÊU THÍCH";
+    public const string GameCategory = "KHO GAME";
+    public const string AppCategory = "ỨNG DỤNG";
     private const string LatestReleaseApiUrl = "https://api.github.com/repos/DontAskMeWhy0507/Launcher/releases/latest";
     private const string LatestReleaseWebUrl = "https://github.com/DontAskMeWhy0507/Launcher/releases/latest";
 
@@ -116,7 +116,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
     public string[] Tabs { get; } = [FavoriteTab, GameCategory, AppCategory];
     public bool IsLauncherTab => !IsSettingsPage;
-    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.1.0"}";
+    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.1.1"}";
 
     public MainViewModel(ISettingsService settingsService, ILauncherService launcherService, IStartupService startupService)
     {
@@ -236,7 +236,7 @@ public sealed partial class MainViewModel : ObservableObject
                || item.Name.Contains(SearchText, StringComparison.CurrentCultureIgnoreCase));
     }
 
-    private static string NormalizeTab(string? tab)
+    internal static string NormalizeTab(string? tab)
     {
         var normalized = NormalizeVietnameseText(tab);
         if (normalized.Contains("YÊU", StringComparison.OrdinalIgnoreCase) ||
@@ -247,7 +247,9 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         if (normalized.Contains(GameCategory, StringComparison.OrdinalIgnoreCase) ||
-            normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase))
+            normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("CHƠI", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("CHOI", StringComparison.OrdinalIgnoreCase))
         {
             return GameCategory;
         }
@@ -255,16 +257,18 @@ public sealed partial class MainViewModel : ObservableObject
         return AppCategory;
     }
 
-    private static string NormalizeCategory(string? category)
+    internal static string NormalizeCategory(string? category)
     {
         var normalized = NormalizeVietnameseText(category);
         return (normalized.Contains(GameCategory, StringComparison.OrdinalIgnoreCase) ||
-                normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase))
+                normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains("CHƠI", StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains("CHOI", StringComparison.OrdinalIgnoreCase))
             ? GameCategory
             : AppCategory;
     }
 
-    private static string NormalizeVietnameseText(string? value)
+    internal static string NormalizeVietnameseText(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -757,7 +761,7 @@ public sealed partial class MainViewModel : ObservableObject
         return httpClient;
     }
 
-    private static Version? ParseVersion(string? tagName)
+    internal static Version? ParseVersion(string? tagName)
     {
         if (string.IsNullOrWhiteSpace(tagName)) return null;
         var normalized = tagName.Trim().TrimStart('v', 'V');
@@ -776,7 +780,7 @@ public sealed partial class MainViewModel : ObservableObject
         return tagName.Equals(formatted, StringComparison.OrdinalIgnoreCase) ? formatted : $"{formatted} ({tagName})";
     }
 
-    private static string? FormatVersionNumber(Version? version)
+    internal static string? FormatVersionNumber(Version? version)
     {
         if (version is null) return null;
 

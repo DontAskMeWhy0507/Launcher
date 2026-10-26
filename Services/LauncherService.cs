@@ -376,10 +376,26 @@ public sealed class LauncherService : ILauncherService
     private static bool LooksLikeShellCommand(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return false;
-        if (Uri.TryCreate(path, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Scheme)) return true;
-        return !path.Contains(Path.DirectorySeparatorChar) &&
-               !path.Contains(Path.AltDirectorySeparatorChar) &&
-               path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+
+        if (Uri.TryCreate(path, UriKind.Absolute, out var uri) &&
+            !string.IsNullOrWhiteSpace(uri.Scheme) &&
+            !uri.IsFile &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeFile, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!path.Contains(Path.DirectorySeparatorChar) && !path.Contains(Path.AltDirectorySeparatorChar))
+        {
+            var trimmed = path.Trim();
+            if (trimmed.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "calc", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static LaunchTarget ResolveShortcut(string path)

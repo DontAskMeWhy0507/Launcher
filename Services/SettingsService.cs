@@ -10,9 +10,13 @@ public sealed class SettingsService : ISettingsService
     private readonly string _configPath;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
 
-    public SettingsService()
+    public SettingsService() : this(AppPaths.ConfigPath)
     {
-        _configPath = AppPaths.ConfigPath;
+    }
+
+    public SettingsService(string configPath)
+    {
+        _configPath = configPath;
     }
 
     public async Task<LauncherSettings> LoadAsync()
