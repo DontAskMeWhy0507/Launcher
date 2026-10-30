@@ -33,9 +33,9 @@ public sealed partial class MainViewModel : ObservableObject
     private CancellationTokenSource? _scanCts;
     private GitHubReleaseAsset? _pendingUpdateInstaller;
     private string _pendingUpdateVersion = string.Empty;
-    public const string FavoriteTab = "YÊU THÍCH";
-    public const string GameCategory = "KHO GAME";
-    public const string AppCategory = "ỨNG DỤNG";
+    public const string FavoriteTab = "FAVORITES";
+    public const string GameCategory = "GAMES";
+    public const string AppCategory = "APPS";
     private const string LatestReleaseApiUrl = "https://api.github.com/repos/DontAskMeWhy0507/Launcher/releases/latest";
     private const string LatestReleaseWebUrl = "https://github.com/DontAskMeWhy0507/Launcher/releases/latest";
 
@@ -84,14 +84,14 @@ public sealed partial class MainViewModel : ObservableObject
     private string _scanCustomPath = string.Empty;
 
     [ObservableProperty]
-    private string _scanStatus = "Chưa scan.";
+    private string _scanStatus = "Scan has not started.";
 
 
     [ObservableProperty]
     private bool _isUpdating;
 
     [ObservableProperty]
-    private string _updateStatus = "Sẵn sàng kiểm tra bản mới.";
+    private string _updateStatus = "Ready to check for updates.";
 
     [ObservableProperty]
     private bool _hasUpdate;
@@ -120,7 +120,7 @@ public sealed partial class MainViewModel : ObservableObject
     public bool IsLauncherTab => !IsSettingsPage;
     public bool IsFavoriteTab => string.Equals(ActiveTab, FavoriteTab, StringComparison.OrdinalIgnoreCase);
     public bool IsFavoriteTabEmpty => IsLauncherTab && IsFavoriteTab && !Launchers.Any(x => x.IsFavorite);
-    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.1.2"}";
+    public string CurrentVersion => $"v{FormatVersionNumber(Assembly.GetExecutingAssembly().GetName().Version) ?? "4.2.0"}";
 
     public MainViewModel(ISettingsService settingsService, ILauncherService launcherService, IStartupService startupService)
     {
@@ -243,7 +243,8 @@ public sealed partial class MainViewModel : ObservableObject
     internal static string NormalizeTab(string? tab)
     {
         var normalized = NormalizeVietnameseText(tab);
-        if (normalized.Contains("YÊU", StringComparison.OrdinalIgnoreCase) ||
+        if (normalized.Contains("FAVORITE", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("YÊU", StringComparison.OrdinalIgnoreCase) ||
             normalized.Contains("YEU", StringComparison.OrdinalIgnoreCase) ||
             normalized.Contains("YÃ", StringComparison.OrdinalIgnoreCase))
         {
@@ -251,6 +252,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         if (normalized.Contains(GameCategory, StringComparison.OrdinalIgnoreCase) ||
+            normalized.Contains("KHO GAME", StringComparison.OrdinalIgnoreCase) ||
             normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase) ||
             normalized.Contains("CHƠI", StringComparison.OrdinalIgnoreCase) ||
             normalized.Contains("CHOI", StringComparison.OrdinalIgnoreCase))
@@ -265,6 +267,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var normalized = NormalizeVietnameseText(category);
         return (normalized.Contains(GameCategory, StringComparison.OrdinalIgnoreCase) ||
+                normalized.Contains("KHO GAME", StringComparison.OrdinalIgnoreCase) ||
                 normalized.Contains("GAME", StringComparison.OrdinalIgnoreCase) ||
                 normalized.Contains("CHƠI", StringComparison.OrdinalIgnoreCase) ||
                 normalized.Contains("CHOI", StringComparison.OrdinalIgnoreCase))
@@ -390,7 +393,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Chọn shortcut hoặc file chạy",
+            Title = "Select shortcut or executable",
             Filter = "Shortcut/Executable (*.lnk;*.exe)|*.lnk;*.exe|All files (*.*)|*.*"
         };
 
@@ -407,7 +410,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         using var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
-            Description = "Chọn thư mục muốn thêm vào launcher",
+            Description = "Select folder to add to launcher",
             UseDescriptionForTitle = true
         };
 
@@ -435,7 +438,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (IsScanning) return;
         IsScanning = true;
-        ScanStatus = "Đang scan...";
+        ScanStatus = "Scanning...";
         ScanResults.Clear();
         var existingKeys = GetExistingLauncherKeys();
         _scanCts?.Cancel();
@@ -465,12 +468,12 @@ public sealed partial class MainViewModel : ObservableObject
 
             _lastScanResults = pendingCandidates;
             ScanStatus = pendingCandidates.Count == 0
-                ? "Không tìm thấy ứng dụng/game mới."
+                ? "No new applications or games found."
                 : $"Tìm thấy {pendingCandidates.Count} mục mới. Hiển thị {ScanResults.Count} mục đầu tiên.";
         }
         catch (OperationCanceledException)
         {
-            ScanStatus = "Đã dừng scan.";
+            ScanStatus = "Scan stopped.";
         }
         finally
         {
@@ -526,7 +529,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void CancelScan()
     {
         _scanCts?.Cancel();
-        ScanStatus = "Đang dừng scan...";
+        ScanStatus = "Stopping scan...";
     }
 
     [RelayCommand]
@@ -558,7 +561,7 @@ public sealed partial class MainViewModel : ObservableObject
         await AddSelectedScanCandidatesAsync(selectedCandidates);
         ScanResults = new ObservableCollection<ScanResultItem>(ScanResults.Where(result => !result.IsSelected));
         ScanStatus = selectedCandidates.Count == 0
-            ? "Chưa chọn mục nào."
+            ? "No items selected."
             : $"Đã thêm {selectedCandidates.Count} mục đã chọn.";
     }
 
@@ -567,7 +570,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         using var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
-            Description = "Chọn thư mục muốn scan",
+            Description = "Select folder to scan",
             UseDescriptionForTitle = true
         };
 
@@ -584,7 +587,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (invalidItems.Count == 0)
         {
-            UserDialog.ShowMessage("Kiểm tra ứng dụng", "Tất cả ứng dụng và game trong Launcher đều hợp lệ. Không tìm thấy mục nào bị gỡ hoặc mất đường dẫn.");
+            UserDialog.ShowMessage("Application Validation", "All applications and games in Launcher are valid. No missing or broken paths were found.");
             return;
         }
 
@@ -592,7 +595,7 @@ public sealed partial class MainViewModel : ObservableObject
         var extraCount = invalidItems.Count > 8 ? $"\n... và {invalidItems.Count - 8} mục khác." : "";
         var message = $"Tìm thấy {invalidItems.Count} ứng dụng không còn tồn tại trên máy:\n\n{sampleList}{extraCount}\n\nBạn có muốn xoá các mục này khỏi Launcher không?";
 
-        if (!UserDialog.ShowConfirmation("Dọn dẹp ứng dụng đã gỡ", message))
+        if (!UserDialog.ShowConfirmation("Clean Missing Applications", message))
         {
             return;
         }
@@ -605,7 +608,7 @@ public sealed partial class MainViewModel : ObservableObject
         FilteredLaunchers.Refresh();
         await SaveAsync();
 
-        UserDialog.ShowMessage("Hoàn tất", $"Đã xoá thành công {invalidItems.Count} ứng dụng không còn tồn tại khỏi Launcher.");
+        UserDialog.ShowMessage("Finished", $"Successfully removed {invalidItems.Count} missing application(s) from Launcher.");
     }
     [RelayCommand]
     private async Task CheckForUpdateAsync()
@@ -616,14 +619,14 @@ public sealed partial class MainViewModel : ObservableObject
         HasUpdate = false;
         _pendingUpdateInstaller = null;
         _pendingUpdateVersion = string.Empty;
-        UpdateStatus = "Đang kiểm tra bản mới...";
+        UpdateStatus = "Checking for updates...";
 
         try
         {
             var release = await GetLatestReleaseAsync();
             if (release is null)
             {
-                UpdateStatus = "Không đọc được thông tin bản mới.";
+                UpdateStatus = "Unable to read update information.";
                 return;
             }
 
@@ -631,7 +634,7 @@ public sealed partial class MainViewModel : ObservableObject
             var currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
             if (latestVersion is not null && currentVersion is not null && latestVersion <= currentVersion)
             {
-                UpdateStatus = $"Đang dùng bản mới nhất: hiện tại {FormatVersion(currentVersion)}, mới nhất {FormatReleaseVersion(release.TagName, latestVersion)}.";
+                UpdateStatus = $"You are using the latest version: current {FormatVersion(currentVersion)}, latest {FormatReleaseVersion(release.TagName, latestVersion)}.";
                 return;
             }
 
@@ -641,18 +644,18 @@ public sealed partial class MainViewModel : ObservableObject
 
             if (installer is null)
             {
-                UpdateStatus = "Release mới chưa có file LauncherSetup.exe.";
+                UpdateStatus = "The latest release does not contain LauncherSetup.exe.";
                 return;
             }
 
             _pendingUpdateInstaller = installer;
             _pendingUpdateVersion = FormatReleaseVersion(release.TagName, latestVersion);
             HasUpdate = true;
-            UpdateStatus = $"Có bản mới: hiện tại {FormatVersion(currentVersion)}, mới nhất {FormatReleaseVersion(release.TagName, latestVersion)}. Bấm UPDATE để tải và cài.";
+            UpdateStatus = $"Update available: current {FormatVersion(currentVersion)}, latest {FormatReleaseVersion(release.TagName, latestVersion)}. Click UPDATE to download and install.";
         }
         catch (Exception ex)
         {
-            UpdateStatus = $"Kiểm tra update lỗi: {ex.Message}";
+            UpdateStatus = $"Update check error: {ex.Message}";
         }
         finally
         {
@@ -677,14 +680,14 @@ public sealed partial class MainViewModel : ObservableObject
             using var httpClient = CreateGitHubHttpClient();
             var downloadPath = Path.Combine(Path.GetTempPath(), _pendingUpdateInstaller.Name);
             var updateVersion = string.IsNullOrWhiteSpace(_pendingUpdateVersion) ? _pendingUpdateInstaller.Name : _pendingUpdateVersion;
-            UpdateStatus = $"Đang tải bản {updateVersion} ({_pendingUpdateInstaller.Name})...";
+            UpdateStatus = $"Downloading {updateVersion} ({_pendingUpdateInstaller.Name})...";
             await using (var input = await httpClient.GetStreamAsync(_pendingUpdateInstaller.DownloadUrl))
             await using (var output = File.Create(downloadPath))
             {
                 await input.CopyToAsync(output);
             }
 
-            UpdateStatus = $"Đang mở installer bản {updateVersion}...";
+            UpdateStatus = $"Launching installer for {updateVersion}...";
             Process.Start(new ProcessStartInfo(downloadPath)
             {
                 UseShellExecute = true,
@@ -695,7 +698,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            UpdateStatus = $"Update lỗi: {ex.Message}";
+            UpdateStatus = $"Update failed: {ex.Message}";
         }
         finally
         {
@@ -780,7 +783,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private static string FormatVersion(Version? version)
     {
-        return version is null ? "không rõ" : $"v{FormatVersionNumber(version)}";
+        return version is null ? "unknown" : $"v{FormatVersionNumber(version)}";
     }
 
     private static string FormatReleaseVersion(string tagName, Version? parsedVersion)
@@ -871,7 +874,7 @@ public sealed partial class MainViewModel : ObservableObject
 
             ScanStatus = added > 0
                 ? $"Đã thêm {added} ứng dụng/game mới."
-                : "Chưa thêm ứng dụng/game nào.";
+                : "No applications or games added.";
         }
         finally
         {
@@ -897,7 +900,7 @@ public sealed partial class MainViewModel : ObservableObject
             if (!File.Exists(filePath) && !Directory.Exists(filePath) && !LooksLikeShellCommand(filePath))
             {
                 ShowThemedMessage(
-                    "Lỗi thêm ứng dụng",
+                    "Error Adding Application",
                     $"Không tìm thấy file hoặc thư mục tại đường dẫn:\n\"{filePath}\"\n\nVui lòng kiểm tra lại quyền truy cập hoặc file gốc.");
                 return;
             }
@@ -906,7 +909,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ? Path.GetFileNameWithoutExtension(filePath).ToUpperInvariant()
                 : displayName.Trim().ToUpperInvariant();
             if (Path.GetFileName(filePath).Equals("calc.exe", StringComparison.OrdinalIgnoreCase)) fileName = "CALCULATOR";
-            if (string.IsNullOrWhiteSpace(fileName)) fileName = "ỨNG DỤNG MỚI";
+            if (string.IsNullOrWhiteSpace(fileName)) fileName = "NEW APPLICATION";
 
             string category = ActiveTab == GameCategory ? GameCategory : AppCategory;
             string iconPath = await _launcherService.GetIconPathAsync(filePath);
@@ -1474,7 +1477,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveLauncherAsync(LauncherItem item)
     {
-        if (!ShowThemedConfirmation("Xóa launcher", $"Xóa {item.Name}?"))
+        if (!ShowThemedConfirmation("Delete Application", $"Delete {item.Name}?"))
         {
             return;
         }
@@ -1533,7 +1536,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Chọn icon launcher",
+            Title = "Choose application icon",
             Filter = "Image files (*.png;*.jpg;*.jpeg;*.ico)|*.png;*.jpg;*.jpeg;*.ico|All files (*.*)|*.*"
         };
 
@@ -1571,8 +1574,8 @@ public sealed partial class MainViewModel : ObservableObject
             Orientation = WpfOrientation.Horizontal,
             HorizontalAlignment = WpfHorizontalAlignment.Right
         };
-        var noButton = CreateDialogButton("Hủy", palette, isPrimary: false);
-        var yesButton = CreateDialogButton("Xóa", palette, isPrimary: true);
+        var noButton = CreateDialogButton("Cancel", palette, isPrimary: false);
+        var yesButton = CreateDialogButton("Delete", palette, isPrimary: true);
         noButton.IsCancel = true;
         yesButton.IsDefault = true;
         noButton.Margin = new Thickness(0, 0, 8, 0);
@@ -1628,7 +1631,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         var dialog = new Window
         {
-            Title = "Sửa launcher",
+            Title = "Edit Application",
             Width = 560,
             Height = 330,
             WindowStartupLocation = Application.Current.MainWindow is { IsLoaded: true, IsVisible: true } ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen,
@@ -1673,7 +1676,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         var browseFileButton = new System.Windows.Controls.Button
         {
-            Content = "Chọn file",
+            Content = "Browse File",
             Width = 92,
             Margin = new Thickness(8, 0, 0, 0),
             Background = panelBrush,
@@ -1683,7 +1686,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         var browseFolderButton = new System.Windows.Controls.Button
         {
-            Content = "Chọn folder",
+            Content = "Browse Folder",
             Width = 104,
             Margin = new Thickness(8, 0, 0, 0),
             Background = panelBrush,
@@ -1730,7 +1733,7 @@ public sealed partial class MainViewModel : ObservableObject
         };
         var cancelButton = new System.Windows.Controls.Button
         {
-            Content = "Hủy",
+            Content = "Cancel",
             Width = 86,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
@@ -1740,7 +1743,7 @@ public sealed partial class MainViewModel : ObservableObject
         };
         var saveButton = new System.Windows.Controls.Button
         {
-            Content = "Lưu",
+            Content = "Save",
             Width = 86,
             IsDefault = true,
             Background = accentBrush,
@@ -1754,7 +1757,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var fileDialog = new OpenFileDialog
             {
-                Title = "Chọn shortcut hoặc file chạy",
+                Title = "Select shortcut or executable",
                 Filter = "Shortcut/Executable (*.lnk;*.exe)|*.lnk;*.exe|All files (*.*)|*.*"
             };
 
@@ -1772,7 +1775,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             using var folderDialog = new System.Windows.Forms.FolderBrowserDialog
             {
-                Description = "Chọn thư mục cho launcher",
+                Description = "Select folder for application",
                 UseDescriptionForTitle = true
             };
 
@@ -1792,22 +1795,22 @@ public sealed partial class MainViewModel : ObservableObject
             var editedPath = pathBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(editedName))
             {
-                statusText.Text = "Tên launcher không được để trống.";
+                statusText.Text = "Application name cannot be empty.";
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(editedPath))
             {
-                statusText.Text = "Đường dẫn không được để trống.";
+                statusText.Text = "Executable path cannot be empty.";
                 return;
             }
 
             dialog.DialogResult = true;
         };
 
-        AddLabeledControl(root, "Tên", nameBox, 0, textBrush);
-        AddLabeledControl(root, "Đường dẫn", pathRow, 1, textBrush);
-        AddLabeledControl(root, "Loại", categoryBox, 2, textBrush);
+        AddLabeledControl(root, "Name", nameBox, 0, textBrush);
+        AddLabeledControl(root, "Path", pathRow, 1, textBrush);
+        AddLabeledControl(root, "Category", categoryBox, 2, textBrush);
         System.Windows.Controls.Grid.SetRow(statusText, 3);
         root.Children.Add(statusText);
         System.Windows.Controls.Grid.SetRow(buttons, 4);

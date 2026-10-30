@@ -174,7 +174,7 @@
                                 Background="{Binding DataContext.IsLightTheme, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=ButtonSecondary}"
                                 BorderBrush="{Binding DataContext.IsLightTheme, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=ButtonSecondaryBorder}">
                             <Grid>
-                                <TextBlock x:Name="StateText" Text="TẮT" FontSize="11" FontWeight="Bold"
+                                <TextBlock x:Name="StateText" Text="OFF" FontSize="11" FontWeight="Bold"
                                            VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,12,0"
                                            Foreground="{Binding DataContext.IsLightTheme, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"/>
                                 <Border x:Name="Thumb" Width="22" Height="22" CornerRadius="11"
@@ -193,7 +193,7 @@
                                 <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
                                 <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
                                 <Setter TargetName="Thumb" Property="Background" Value="#FFFFFF"/>
-                                <Setter TargetName="StateText" Property="Text" Value="BẬT"/>
+                                <Setter TargetName="StateText" Property="Text" Value="ON"/>
                                 <Setter TargetName="StateText" Property="HorizontalAlignment" Value="Left"/>
                                 <Setter TargetName="StateText" Property="Margin" Value="12,0,0,0"/>
                                 <Setter TargetName="StateText" Property="Foreground" Value="#FFFFFF"/>
@@ -438,24 +438,24 @@
 
                     <Border Grid.Column="0" Height="44" Padding="0,4" CornerRadius="22" Background="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=HeaderPill}" BorderBrush="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=HeaderPillBorder}" BorderThickness="1" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <ToggleButton Style="{StaticResource TabButtonStyle}" Content="YÊU THÍCH"
-                                          IsChecked="{Binding ActiveTab, Converter={StaticResource ActiveTabConverter}, ConverterParameter=YÊU THÍCH}"/>
-                            <ToggleButton Style="{StaticResource TabButtonStyle}" Content="KHO GAME"
-                                          IsChecked="{Binding ActiveTab, Converter={StaticResource ActiveTabConverter}, ConverterParameter=KHO GAME}"/>
-                            <ToggleButton Style="{StaticResource TabButtonStyle}" Content="ỨNG DỤNG"
-                                          IsChecked="{Binding ActiveTab, Converter={StaticResource ActiveTabConverter}, ConverterParameter=ỨNG DỤNG}"/>
+                            <ToggleButton Style="{StaticResource TabButtonStyle}" Content="FAVORITES"
+                                          IsChecked="{Binding ActiveTab, Converter={StaticResource ActiveTabConverter}, ConverterParameter=FAVORITES}"/>
+                            <ToggleButton Style="{StaticResource TabButtonStyle}" Content="GAMES"
+                                          IsChecked="{Binding ActiveTab, Converter={StaticResource ActiveTabConverter}, ConverterParameter=GAMES}"/>
+                            <ToggleButton Style="{StaticResource TabButtonStyle}" Content="APPS"
+                                          IsChecked="{Binding ActiveTab, Converter={StaticResource ActiveTabConverter}, ConverterParameter=APPS}"/>
                         </StackPanel>
                     </Border>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Style="{StaticResource WindowButtonStyle}"
                                 Command="{Binding OpenSettingsCommand}"
-                                ToolTip="Cài đặt">
+                                ToolTip="Settings">
                             <materialDesign:PackIcon Kind="Cog" Width="22" Height="22"/>
                         </Button>
-                        <Button Style="{StaticResource WindowButtonStyle}" Content="-" Click="OnMinimizeClick" ToolTip="Thu nhỏ"/>
-                        <Button Style="{StaticResource WindowButtonStyle}" Content="□" Click="OnMaximizeClick" ToolTip="Phóng to"/>
-                        <Button Style="{StaticResource CloseButtonStyle}" Content="×" Click="OnCloseClick" ToolTip="Đóng"/>
+                        <Button Style="{StaticResource WindowButtonStyle}" Content="-" Click="OnMinimizeClick" ToolTip="Minimize"/>
+                        <Button Style="{StaticResource WindowButtonStyle}" Content="□" Click="OnMaximizeClick" ToolTip="Maximize"/>
+                        <Button Style="{StaticResource CloseButtonStyle}" Content="×" Click="OnCloseClick" ToolTip="Close"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -473,7 +473,7 @@
                          FontWeight="SemiBold"
                          CaretBrush="White"
                          VerticalContentAlignment="Center"/>
-                <TextBlock Text="Tìm kiếm ứng dụng..."
+                <TextBlock Text="Search applications or games..."
                            Margin="56,0,0,0"
                            Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"
                            FontSize="18"
@@ -635,13 +635,13 @@
                                         </Button.Triggers>
                                         <Button.ContextMenu>
                                             <ContextMenu>
-                                                <MenuItem Header="Thêm launcher" Command="{Binding PlacementTarget.Tag.AddLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                <MenuItem Header="Thêm folder" Command="{Binding PlacementTarget.Tag.AddFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                <MenuItem Header="Thêm Calculator" Command="{Binding PlacementTarget.Tag.AddCalculatorCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                <MenuItem Header="Thêm Clock" Command="{Binding PlacementTarget.Tag.AddClockCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Add application" Command="{Binding PlacementTarget.Tag.AddLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Add folder" Command="{Binding PlacementTarget.Tag.AddFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Add Calculator" Command="{Binding PlacementTarget.Tag.AddCalculatorCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Add Clock" Command="{Binding PlacementTarget.Tag.AddClockCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                 <Separator/>
-                                                <MenuItem Header="Sửa launcher" Command="{Binding PlacementTarget.Tag.EditLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                                <MenuItem Header="Sửa icon" Command="{Binding PlacementTarget.Tag.EditIconCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Edit application" Command="{Binding PlacementTarget.Tag.EditLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Change icon" Command="{Binding PlacementTarget.Tag.EditIconCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                 <MenuItem Header="{Binding PlacementTarget.DataContext.Category, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource CategoryToHeaderConverter}}"
                                                           Command="{Binding PlacementTarget.Tag.ToggleCategoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                           CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
@@ -650,7 +650,7 @@
                                                           Command="{Binding PlacementTarget.Tag.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                           CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                                 <Separator/>
-                                                <MenuItem Header="Xóa launcher" Command="{Binding PlacementTarget.Tag.RemoveLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Delete application" Command="{Binding PlacementTarget.Tag.RemoveLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                         <Grid>
@@ -718,7 +718,7 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                    <TextBlock Text="Chưa có ứng dụng yêu thích nào."
+                    <TextBlock Text="No favorite applications yet."
                                FontSize="14"
                                FontWeight="SemiBold"
                                HorizontalAlignment="Center"
@@ -751,26 +751,26 @@
                                     Padding="0"
                                     Margin="0,0,14,0"
                                     Command="{Binding CloseSettingsCommand}"
-                                    ToolTip="Quay lại danh sách">
+                                    ToolTip="Back to library">
                                 <materialDesign:PackIcon Kind="ArrowLeft" Width="20" Height="20"/>
                             </Button>
                             <TextBlock Grid.Column="1"
-                                       Text="Cài đặt hệ thống"
+                                       Text="System Settings"
                                        Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}"
                                        FontSize="22"
                                        FontWeight="Black"
                                        VerticalAlignment="Center"/>
                         </Grid>
-                        <TextBlock Text="Quản lý thư viện game, ứng dụng và tùy chỉnh hành vi hoạt động của Launcher."
+                        <TextBlock Text="Manage your game &amp; app library and customize Launcher behavior."
                                    Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"
                                    FontSize="13.5"
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,24"/>
 
-                        <!-- ================= SECTION 1: QUẢN LÝ THƯ VIỆN & ỨNG DỤNG ================= -->
+                        <!-- ================= SECTION 1: LIBRARY & APP MANAGEMENT ================= -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <materialDesign:PackIcon Kind="ViewGridPlus" Width="18" Height="18" VerticalAlignment="Center" Foreground="#3B82F6" Margin="0,0,8,0"/>
-                            <TextBlock Text="QUẢN LÝ THƯ VIỆN &amp; ỨNG DỤNG" FontSize="12" FontWeight="Black"
+                            <TextBlock Text="LIBRARY &amp; APP MANAGEMENT" FontSize="12" FontWeight="Black"
                                        Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SectionHeader}"/>
                         </StackPanel>
 
@@ -787,7 +787,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                                        <TextBlock Text="Quét tự động &amp; Dọn dẹp ứng dụng"
+                                        <TextBlock Text="Auto-Scan &amp; Cleanup Applications"
                                                    Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}"
                                                    FontSize="16"
                                                    FontWeight="Black"/>
@@ -801,27 +801,27 @@
                                         <Button Style="{StaticResource SettingDangerButtonStyle}"
                                                 Margin="0,0,8,0"
                                                 Command="{Binding CleanMissingLaunchersCommand}"
-                                                ToolTip="Kiểm tra và xóa các ứng dụng/game đã gỡ khỏi máy">
+                                                ToolTip="Check and remove uninstalled applications or games">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <materialDesign:PackIcon Kind="Broom" Width="16" Height="16" Margin="0,0,6,0"/>
-                                                <TextBlock Text="DỌN DẸP APP ĐÃ GỠ" FontSize="11.5" FontWeight="Bold"/>
+                                                <TextBlock Text="CLEAN MISSING APPS" FontSize="11.5" FontWeight="Bold"/>
                                             </StackPanel>
                                         </Button>
                                         <Button Style="{StaticResource SettingPrimaryButtonStyle}"
                                                 Command="{Binding ScanLaunchersCommand}"
-                                                ToolTip="Quét tìm ứng dụng và game trên máy">
+                                                ToolTip="Scan for installed applications and games">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" Margin="0,0,6,0"/>
-                                                <TextBlock Text="QUÉT TỰ ĐỘNG" FontSize="11.5" FontWeight="Bold"/>
+                                                <TextBlock Text="AUTO SCAN" FontSize="11.5" FontWeight="Bold"/>
                                             </StackPanel>
                                         </Button>
                                         <Button Style="{StaticResource SettingSecondaryButtonStyle}"
                                                 Margin="8,0,0,0"
                                                 Command="{Binding CancelScanCommand}"
-                                                ToolTip="Dừng quá trình quét">
+                                                ToolTip="Stop scanning process">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <materialDesign:PackIcon Kind="Stop" Width="16" Height="16" Margin="0,0,6,0"/>
-                                                <TextBlock Text="DỪNG" FontSize="11.5" FontWeight="Bold"/>
+                                                <TextBlock Text="STOP" FontSize="11.5" FontWeight="Bold"/>
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>
@@ -829,10 +829,10 @@
 
                                 <WrapPanel Margin="0,16,0,12">
                                     <CheckBox Content="Start Menu &amp; Desktop" IsChecked="{Binding ScanStartMenuAndDesktop}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
-                                    <CheckBox Content="Phần mềm gần đây" IsChecked="{Binding ScanRecentSoftware}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
-                                    <CheckBox Content="Registry Windows" IsChecked="{Binding ScanRegistry}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
+                                    <CheckBox Content="Recent Software" IsChecked="{Binding ScanRecentSoftware}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
+                                    <CheckBox Content="Windows Registry" IsChecked="{Binding ScanRegistry}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
                                     <CheckBox Content="User Profile" IsChecked="{Binding ScanUserProfile}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
-                                    <CheckBox Content="Ổ đĩa game (Steam/Epic/D:)" IsChecked="{Binding ScanDrives}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
+                                    <CheckBox Content="Game Drives (Steam/Epic/D:)" IsChecked="{Binding ScanDrives}" Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}" FontWeight="SemiBold" Margin="0,0,18,8"/>
                                 </WrapPanel>
 
                                 <ProgressBar Height="4"
@@ -855,30 +855,30 @@
                                              BorderBrush="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchBorder}"
                                              FontSize="13"
                                              VerticalContentAlignment="Center"
-                                             ToolTip="Đường dẫn tùy chọn để quét (ví dụ: D:\Games)"/>
+                                             ToolTip="Custom scan path (e.g., D:\Games)"/>
                                     <Button Grid.Column="1"
                                             Style="{StaticResource SettingSecondaryButtonStyle}"
                                             Margin="8,0,0,0"
                                             Command="{Binding BrowseScanPathCommand}"
-                                            ToolTip="Chọn thư mục tùy chỉnh">
+                                            ToolTip="Browse custom folder">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <materialDesign:PackIcon Kind="FolderOpenOutline" Width="16" Height="16" Margin="0,0,6,0"/>
-                                            <TextBlock Text="CHỌN THƯ MỤC" FontSize="11.5" FontWeight="SemiBold"/>
+                                            <TextBlock Text="BROWSE FOLDER" FontSize="11.5" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                 </Grid>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                    <Button Style="{StaticResource SettingSecondaryButtonStyle}" Command="{Binding SelectAllScanResultsCommand}" ToolTip="Chọn tất cả kết quả">
-                                        <TextBlock Text="CHỌN HẾT" FontSize="11" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource SettingSecondaryButtonStyle}" Command="{Binding SelectAllScanResultsCommand}" ToolTip="Select all results">
+                                        <TextBlock Text="SELECT ALL" FontSize="11" FontWeight="Bold"/>
                                     </Button>
-                                    <Button Style="{StaticResource SettingSecondaryButtonStyle}" Margin="8,0,0,0" Command="{Binding ClearScanResultsSelectionCommand}" ToolTip="Bỏ chọn toàn bộ">
-                                        <TextBlock Text="BỎ CHỌN" FontSize="11" FontWeight="Bold"/>
+                                    <Button Style="{StaticResource SettingSecondaryButtonStyle}" Margin="8,0,0,0" Command="{Binding ClearScanResultsSelectionCommand}" ToolTip="Deselect all">
+                                        <TextBlock Text="DESELECT ALL" FontSize="11" FontWeight="Bold"/>
                                     </Button>
-                                    <Button Style="{StaticResource SettingPrimaryButtonStyle}" Margin="8,0,0,0" Command="{Binding AddSelectedScanResultsCommand}" ToolTip="Thêm các mục đã chọn vào Launcher">
+                                    <Button Style="{StaticResource SettingPrimaryButtonStyle}" Margin="8,0,0,0" Command="{Binding AddSelectedScanResultsCommand}" ToolTip="Add selected items to Launcher">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Margin="0,0,4,0"/>
-                                            <TextBlock Text="THÊM MỤC ĐÃ CHỌN" FontSize="11" FontWeight="Bold"/>
+                                            <TextBlock Text="ADD SELECTED" FontSize="11" FontWeight="Bold"/>
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
@@ -943,10 +943,10 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- ================= SECTION 2: HÀNH VI & KHỞI ĐỘNG ================= -->
+                        <!-- ================= SECTION 2: BEHAVIOR & STARTUP ================= -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <materialDesign:PackIcon Kind="Tune" Width="18" Height="18" VerticalAlignment="Center" Foreground="#10B981" Margin="0,0,8,0"/>
-                            <TextBlock Text="HÀNH VI &amp; KHỞI ĐỘNG" FontSize="12" FontWeight="Black"
+                            <TextBlock Text="BEHAVIOR &amp; STARTUP" FontSize="12" FontWeight="Black"
                                        Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SectionHeader}"/>
                         </StackPanel>
 
@@ -963,11 +963,11 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Khởi động cùng Windows"
+                                    <TextBlock Text="Start with Windows"
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}"
                                                FontSize="15"
                                                FontWeight="Bold"/>
-                                    <TextBlock Text="Tự động mở launcher khi đăng nhập vào hệ điều hành."
+                                    <TextBlock Text="Automatically open Launcher when logging into Windows."
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"
                                                FontSize="12.5"
                                                FontWeight="SemiBold"
@@ -992,11 +992,11 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Mở toàn màn hình khi khởi động"
+                                    <TextBlock Text="Launch in Fullscreen"
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}"
                                                FontSize="15"
                                                FontWeight="Bold"/>
-                                    <TextBlock Text="Launcher sẽ tự động phóng to tối đa màn hình khi khởi chạy."
+                                    <TextBlock Text="Launcher will automatically maximize to full screen upon startup."
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"
                                                FontSize="12.5"
                                                FontWeight="SemiBold"
@@ -1021,11 +1021,11 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Tự thu nhỏ sau khi khởi chạy ứng dụng"
+                                    <TextBlock Text="Minimize After Launch"
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}"
                                                FontSize="15"
                                                FontWeight="Bold"/>
-                                    <TextBlock Text="Khi bấm mở một game hoặc ứng dụng, launcher sẽ tự thu nhỏ xuống taskbar."
+                                    <TextBlock Text="Launcher will automatically minimize to the taskbar after opening a game or app."
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"
                                                FontSize="12.5"
                                                FontWeight="SemiBold"
@@ -1037,10 +1037,10 @@
                             </Grid>
                         </Border>
 
-                        <!-- ================= SECTION 3: GIAO DIỆN & CẬP NHẬT ================= -->
+                        <!-- ================= SECTION 3: APPEARANCE & UPDATES ================= -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                             <materialDesign:PackIcon Kind="PaletteOutline" Width="18" Height="18" VerticalAlignment="Center" Foreground="#8B5CF6" Margin="0,0,8,0"/>
-                            <TextBlock Text="GIAO DIỆN &amp; BẢN CẬP NHẬT" FontSize="12" FontWeight="Black"
+                            <TextBlock Text="APPEARANCE &amp; UPDATES" FontSize="12" FontWeight="Black"
                                        Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SectionHeader}"/>
                         </StackPanel>
 
@@ -1057,11 +1057,11 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
-                                    <TextBlock Text="Giao diện Sáng (Light Theme)"
+                                    <TextBlock Text="Light Theme"
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}"
                                                FontSize="15"
                                                FontWeight="Bold"/>
-                                    <TextBlock Text="Chuyển đổi giữa chế độ tối cao cấp và chế độ sáng thanh lịch."
+                                    <TextBlock Text="Switch between sleek dark mode and elegant light mode."
                                                Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=Placeholder}"
                                                FontSize="12.5"
                                                FontWeight="SemiBold"
@@ -1086,7 +1086,7 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,20,0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Cập nhật Launcher"
+                                        <TextBlock Text="Launcher Updates"
                                                    Foreground="{Binding IsLightTheme, Converter={StaticResource ThemeBrushConverter}, ConverterParameter=SearchText}"
                                                    FontSize="15"
                                                    FontWeight="Bold"
@@ -1104,16 +1104,16 @@
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                     <Button Style="{StaticResource SettingSecondaryButtonStyle}"
                                             Command="{Binding CheckForUpdateCommand}"
-                                            ToolTip="Kiểm tra bản cập nhật mới nhất từ GitHub">
+                                            ToolTip="Check for the latest update from GitHub">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" Margin="0,0,6,0"/>
-                                            <TextBlock Text="KIỂM TRA" FontSize="11.5" FontWeight="Bold"/>
+                                            <TextBlock Text="CHECK NOW" FontSize="11.5" FontWeight="Bold"/>
                                         </StackPanel>
                                     </Button>
                                     <Button Style="{StaticResource SettingPrimaryButtonStyle}"
                                             Margin="8,0,0,0"
                                             Command="{Binding UpdateLauncherCommand}"
-                                            ToolTip="Tải và cài đặt bản mới nhất">
+                                            ToolTip="Download and install the latest update">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <materialDesign:PackIcon Kind="Download" Width="16" Height="16" Margin="0,0,6,0"/>
                                             <TextBlock Text="UPDATE" FontSize="11.5" FontWeight="Bold"/>
@@ -1135,10 +1135,10 @@
                     Visibility="{Binding IsLauncherTab, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <Button.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Thêm launcher" Command="{Binding PlacementTarget.DataContext.AddLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                        <MenuItem Header="Thêm folder" Command="{Binding PlacementTarget.DataContext.AddFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                        <MenuItem Header="Thêm Calculator" Command="{Binding PlacementTarget.DataContext.AddCalculatorCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                        <MenuItem Header="Thêm Clock" Command="{Binding PlacementTarget.DataContext.AddClockCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                        <MenuItem Header="Add application" Command="{Binding PlacementTarget.DataContext.AddLauncherCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                        <MenuItem Header="Add folder" Command="{Binding PlacementTarget.DataContext.AddFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                        <MenuItem Header="Add Calculator" Command="{Binding PlacementTarget.DataContext.AddCalculatorCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                        <MenuItem Header="Add Clock" Command="{Binding PlacementTarget.DataContext.AddClockCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                     </ContextMenu>
                 </Button.ContextMenu>
                 <materialDesign:PackIcon Kind="Plus" Width="28" Height="28"/>
@@ -1208,7 +1208,7 @@
                                      IsIndeterminate="True"
                                      Foreground="#3B82F6"
                                      Margin="0,0,0,18"/>
-                        <TextBlock Text="Đang scan..."
+                        <TextBlock Text="Scanning..."
                                    Foreground="#111827"
                                    FontSize="15"
                                    FontWeight="Bold"

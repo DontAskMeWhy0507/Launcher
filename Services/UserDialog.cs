@@ -10,7 +10,7 @@ internal static class UserDialog
 
     public static void ShowMessage(string title, string message) => Show(title, message, "OK", null);
 
-    public static bool ShowConfirmation(string title, string message, string primaryText = "Đồng ý", string secondaryText = "Hủy") 
+    public static bool ShowConfirmation(string title, string message, string primaryText = "Confirm", string secondaryText = "Cancel") 
         => Show(title, message, primaryText, secondaryText);
 
     private static bool Show(string title, string message, string primaryText, string? secondaryText)

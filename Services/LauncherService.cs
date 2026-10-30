@@ -12,7 +12,7 @@ public sealed class LauncherService : ILauncherService
     {
         if (string.IsNullOrWhiteSpace(item.ExecutablePath))
         {
-            ShowInfo($"Chưa cấu hình đường dẫn chạy cho {item.Name}.");
+            ShowInfo($"No executable path configured for {item.Name}.");
             return Task.CompletedTask;
         }
 
@@ -20,7 +20,7 @@ public sealed class LauncherService : ILauncherService
         {
             if (!File.Exists(item.ExecutablePath) && !Directory.Exists(item.ExecutablePath) && !LooksLikeShellCommand(item.ExecutablePath))
             {
-                ShowWarning($"Không tìm thấy shortcut/file của {item.Name}:\n{item.ExecutablePath}");
+                ShowWarning($"Shortcut or file not found for {item.Name}:\n{item.ExecutablePath}");
                 return Task.CompletedTask;
             }
 
@@ -38,12 +38,12 @@ public sealed class LauncherService : ILauncherService
 
             if (!started)
             {
-                ShowWarning($"Đã gọi mở {item.Name}, nhưng Windows không trả về tiến trình.\n\nPath: {launchPath}");
+                ShowWarning($"Attempted to launch {item.Name}, but Windows did not return a running process.\n\nPath: {launchPath}");
             }
         }
         catch (Exception ex)
         {
-            ShowError($"Không mở được {item.Name}:\n{ex.Message}\n\nPath:\n{item.ExecutablePath}");
+            ShowError($"Failed to launch {item.Name}:\n{ex.Message}\n\nPath:\n{item.ExecutablePath}");
         }
 
         return Task.CompletedTask;
@@ -55,7 +55,7 @@ public sealed class LauncherService : ILauncherService
         {
             if (string.IsNullOrWhiteSpace(item.ExecutablePath) || (!File.Exists(item.ExecutablePath) && !Directory.Exists(item.ExecutablePath)))
             {
-                ShowWarning($"Không tìm thấy shortcut/file:\n{item.ExecutablePath}");
+                ShowWarning($"Shortcut or file not found:\n{item.ExecutablePath}");
                 return Task.CompletedTask;
             }
 
@@ -80,7 +80,7 @@ public sealed class LauncherService : ILauncherService
         }
         catch (Exception ex)
         {
-            ShowError($"Không mở được file location:\n{ex.Message}");
+            ShowError($"Failed to open file location:\n{ex.Message}");
         }
 
         return Task.CompletedTask;

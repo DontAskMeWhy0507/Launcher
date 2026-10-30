@@ -73,7 +73,7 @@ public class EncodingAndFontTests
     }
 
     [Fact]
-    public void MainWindowXaml_MustContainCorrectVietnameseTexts()
+    public void MainWindowXaml_MustContainCorrectEnglishTexts()
     {
         var rootDir = GetProjectRootDir();
         var xamlPath = Path.Combine(rootDir, "MainWindow.xaml");
@@ -81,32 +81,32 @@ public class EncodingAndFontTests
 
         var content = File.ReadAllText(xamlPath, Encoding.UTF8);
 
-        // Assert crucial Vietnamese texts are properly rendered without encoding bugs
-        Assert.Contains("Text=\"TẮT\"", content);
-        Assert.Contains("Value=\"BẬT\"", content);
-        Assert.Contains("Text=\"Cài đặt hệ thống\"", content);
-        Assert.Contains("Text=\"QUẢN LÝ THƯ VIỆN &amp; ỨNG DỤNG\"", content);
-        Assert.Contains("Text=\"Quét tự động &amp; Dọn dẹp ứng dụng\"", content);
-        Assert.Contains("Text=\"DỌN DẸP APP ĐÃ GỠ\"", content);
-        Assert.Contains("Text=\"QUÉT TỰ ĐỘNG\"", content);
-        Assert.Contains("Text=\"DỪNG\"", content);
-        Assert.Contains("Content=\"Phần mềm gần đây\"", content);
-        Assert.Contains("Content=\"Ổ đĩa game (Steam/Epic/D:)\"", content);
-        Assert.Contains("Text=\"CHỌN THƯ MỤC\"", content);
-        Assert.Contains("Text=\"CHỌN HẾT\"", content);
-        Assert.Contains("Text=\"BỎ CHỌN\"", content);
-        Assert.Contains("Text=\"THÊM MỤC ĐÃ CHỌN\"", content);
-        Assert.Contains("Text=\"HÀNH VI &amp; KHỞI ĐỘNG\"", content);
-        Assert.Contains("Text=\"Khởi động cùng Windows\"", content);
-        Assert.Contains("Text=\"Tự động mở launcher khi đăng nhập vào hệ điều hành.\"", content);
-        Assert.Contains("Text=\"Mở toàn màn hình khi khởi động\"", content);
-        Assert.Contains("Text=\"Tự thu nhỏ sau khi khởi chạy ứng dụng\"", content);
-        Assert.Contains("Text=\"GIAO DIỆN &amp; BẢN CẬP NHẬT\"", content);
-        Assert.Contains("Text=\"Giao diện Sáng (Light Theme)\"", content);
-        Assert.Contains("Text=\"Cập nhật Launcher\"", content);
-        Assert.Contains("Text=\"KIỂM TRA\"", content);
+        // Assert crucial UI texts are properly rendered in English without encoding bugs
+        Assert.Contains("Text=\"OFF\"", content);
+        Assert.Contains("Value=\"ON\"", content);
+        Assert.Contains("Text=\"System Settings\"", content);
+        Assert.Contains("Text=\"LIBRARY &amp; APP MANAGEMENT\"", content);
+        Assert.Contains("Text=\"Auto-Scan &amp; Cleanup Applications\"", content);
+        Assert.Contains("Text=\"CLEAN MISSING APPS\"", content);
+        Assert.Contains("Text=\"AUTO SCAN\"", content);
+        Assert.Contains("Text=\"STOP\"", content);
+        Assert.Contains("Content=\"Recent Software\"", content);
+        Assert.Contains("Content=\"Game Drives (Steam/Epic/D:)\"", content);
+        Assert.Contains("Text=\"BROWSE FOLDER\"", content);
+        Assert.Contains("Text=\"SELECT ALL\"", content);
+        Assert.Contains("Text=\"DESELECT ALL\"", content);
+        Assert.Contains("Text=\"ADD SELECTED\"", content);
+        Assert.Contains("Text=\"BEHAVIOR &amp; STARTUP\"", content);
+        Assert.Contains("Text=\"Start with Windows\"", content);
+        Assert.Contains("Text=\"Automatically open Launcher when logging into Windows.\"", content);
+        Assert.Contains("Text=\"Launch in Fullscreen\"", content);
+        Assert.Contains("Text=\"Minimize After Launch\"", content);
+        Assert.Contains("Text=\"APPEARANCE &amp; UPDATES\"", content);
+        Assert.Contains("Text=\"Light Theme\"", content);
+        Assert.Contains("Text=\"Launcher Updates\"", content);
+        Assert.Contains("Text=\"CHECK NOW\"", content);
         Assert.Contains("Text=\"UPDATE\"", content);
-        Assert.Contains("Text=\"Chưa có ứng dụng yêu thích nào.\"", content);
+        Assert.Contains("Text=\"No favorite applications yet.\"", content);
     }
 
     private static string GetProjectRootDir()

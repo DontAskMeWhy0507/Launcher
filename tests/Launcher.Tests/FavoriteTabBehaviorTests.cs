@@ -13,7 +13,7 @@ public class FavoriteTabBehaviorTests
     {
         var settings = new LauncherSettings();
         Assert.Equal(MainViewModel.FavoriteTab, settings.DefaultTab);
-        Assert.Equal("YÊU THÍCH", settings.DefaultTab);
+        Assert.Equal("FAVORITES", settings.DefaultTab);
     }
 
     [Fact]

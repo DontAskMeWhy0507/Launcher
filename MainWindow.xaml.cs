@@ -316,9 +316,9 @@ public partial class MainWindow : Window
         };
         _notifyIcon.DoubleClick += (s, e) => BringToFront();
         var contextMenu = new System.Windows.Forms.ContextMenuStrip();
-        contextMenu.Items.Add("Mở Launcher", null, (s, e) => BringToFront());
+        contextMenu.Items.Add("Open Launcher", null, (s, e) => BringToFront());
         contextMenu.Items.Add("-");
-        contextMenu.Items.Add("Thoát", null, (s, e) => ExitApplication());
+        contextMenu.Items.Add("Exit", null, (s, e) => ExitApplication());
         _notifyIcon.ContextMenuStrip = contextMenu;
     }
 

@@ -33,7 +33,7 @@ public class SettingsServiceTests : IDisposable
     {
         var settings = new LauncherSettings();
 
-        Assert.Equal("YÊU THÍCH", settings.DefaultTab);
+        Assert.Equal("FAVORITES", settings.DefaultTab);
         Assert.True(settings.OpenFullscreenOnStartup);
         Assert.False(settings.MinimizeAfterLaunch);
         Assert.False(settings.IsLightTheme);
@@ -98,6 +98,6 @@ public class SettingsServiceTests : IDisposable
         var settings = await service.LoadAsync();
 
         Assert.NotNull(settings);
-        Assert.Equal("YÊU THÍCH", settings.DefaultTab);
+        Assert.Equal("FAVORITES", settings.DefaultTab);
     }
 }
